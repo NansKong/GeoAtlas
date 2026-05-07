@@ -1,0 +1,2250 @@
+
+
+============================================================
+D:\GeoAtlas\PRODUCT REQUIREMENTS DOCUMENT.pdf
+============================================================
+
+--- Page 1 ---
+PRODUCT REQUIREMENTS 
+DOCUMENT  
+GeoAtla s  
+ 
+1. Product Vision  
+Create a real-time intelligence platform that connects global geopolitical events with 
+financial market movements and pr edictive insights.  
+Users should be able to understand:  
+Global Event 
+      ↓ 
+Sector Impact  
+      ↓ 
+Market Movement  
+      ↓ 
+Predicted Outcome  
+Example:  
+Event: 
+China sanctions Taiwan semiconductor exports  
+ 
+Impact: 
+Semiconductor supply chain risk  
+ 
+Affected Asse ts: 
+TSMC 
+NVIDIA 
+AMD 
+ 
+Prediction:  
+Short term volatility ↑  
+Chip ETFs ↓  
+ 
+2. Problem Statement  
+Current platforms separate news, geopolitics, and markets . 
+Platform  Problem  
+Google News  No market context  
+TradingView  No geopolitical analysis  
+Bloomberg  Expensive  
+--- Page 2 ---
+Platform  Problem  
+Twitter/X  No signal filtering  
+Users cannot quickly answer:  
+“How will this global event affect markets?”  
+ 
+3. Target Users  
+Primary  
+Retail traders  
+macro investors  
+geopolitics enthusiasts  
+Secondary  
+• hedge fund analysts  
+• policy researchers  
+• journalists  
+• students  
+ 
+4. Unique Value Proposition  
+The first platform that maps geopolitical events to market movements and AI 
+predictions in real time.  
+Key differentiation:  
+Feature  Traditional Platforms  GeoAlpha  
+News  Raw feed  Struc tured event intelligence  
+Market data  Price charts  Event -driven analysis  
+Prediction  None  AI prediction  
+Knowledge organization  None  Pinterest -style boards  
+ 
+5. Core Product Modules  
+ 
+--- Page 3 ---
+Module 1 — Global Event Intelligence Feed  
+A real -time feed of geopolitical and macroeconomic events.  
+Example feed card:  
+Event: 
+Russia attacks Ukrainian refinery  
+ 
+Category:  
+Conflict  
+ 
+Impact: 
+Oil supply disruption  
+ 
+Affected Markets:  
+Crude Oil  
+Energy Stocks  
+ 
+Prediction:  
+Oil ↑ short term 
+Sources  
+• Reuters  
+• AP News  
+• Al Jazeera  
+• Government releases  
+• Think tank reports  
+Data Sources APIs  
+GDELT 
+NewsAPI 
+Mediastack  
+EventRegistry  
+ 
+Module 2 — Event Intelligence Engine  
+Convert news into structured geopolitical events . 
+Pipeline:  
+News Article 
+↓ 
+NLP Extraction  
+↓ 
+Event Classification  
+↓ 
+Sector Impact  
+↓ 
+Market Mapping  
+--- Page 4 ---
+Example structured output:  
+{ 
+ event: "China sanctions US chip firms" , 
+ country: "China", 
+ sector: "Semiconductors" , 
+ impact: "negative" , 
+ assets: [ "NVDA", "AMD", "TSMC"], 
+ confidence: 0.72 
+} 
+Models Used  
+• Named Entity Recognition  
+• Event extraction  
+• Sentiment analysis  
+• Topic classification  
+ 
+Module 3 — Live Market Data Engine  
+Integrates global market data.  
+Assets supported:  
+• Stocks  
+• ETFs  
+• Commodities  
+• Crypto  
+• Forex  
+Data APIs:  
+Polygon 
+Alpha Vantage  
+Finnhub 
+TwelveData  
+Features:  
+• real-time price  
+• volume  
+• charts  
+• volatility  
+ 
+Module 4 — AI Market Impact Prediction  
+--- Page 5 ---
+Predict probable market reaction to geopolitical events.  
+Example:  
+Event: 
+Iran blocks Strait of Hormuz 
+ 
+Prediction:  
+ 
+Oil price:  
+↑ 12% probability  
+ 
+Shipping stocks:  
+↓ 8% 
+ 
+Confidence:  
+65% 
+Models used:  
+ML models  
+LSTM time series 
+Transformer sentiment model  
+Gradient boosting  
+Inputs:  
+news sentiment  
+historical event impact 
+macro indicators  
+ 
+Module 5 — Intelligence Boards (Pinterest -
+style)  
+Users organize intelligence like a visual knowledge board.  
+Example boards:  
+China–US Tech War  
+Middle East Conflict  
+Global Energy Crisis  
+AI Supply Chain  
+Users pin:  
+• news  
+• market charts  
+• predictions  
+• reports  
+--- Page 6 ---
+ 
+Module 6 — Macro Intelligence Dashboard  
+High -level geopolitical view.  
+Features:  
+• world map event visualization  
+• heatmaps  
+• global market trends  
+Example:  
+Red regions = conflicts  
+Green regions = economic growth  
+ 
+Module 7 — Personalized Alerts  
+Users receive alerts when events affect tracked assets.  
+Example:  
+Alert: 
+China announces export restriction  
+ 
+Affected:  
+TSMC 
+NVDA 
+ 
+Prediction:  
+Short term volatility spike  
+ 
+6. System Architecture  
+Production -ready architecture.  
+Users 
+ ↓ 
+Frontend (Web + Mobile)  
+ ↓ 
+API Gateway  
+ ↓ 
+Backend Services  
+ ↓ 
+AI Processing Layer  
+ ↓ 
+Data Pipelines  
+ ↓ 
+--- Page 7 ---
+Database  
+ 
+7. Tech Stack (Production Grade)  
+Frontend (Web)  
+Next.js 
+TypeScript  
+TailwindCSS  
+ShadCN UI  
+Recharts  
+TradingView widgets  
+ 
+Mobile App  
+React Native 
+Expo 
+TypeScript  
+Single codebase for:  
+iOS 
+Android 
+ 
+Backend  
+FastAPI (Python)  
+Node.js (microservices)  
+GraphQL API  
+ 
+AI/ML Layer  
+PyTorch 
+HuggingFace Transformers  
+spaCy 
+LangChain  
+scikit-learn 
+ 
+Data Pipeline  
+Apache Kafka 
+Apache Airflow  
+Celery 
+Redis 
+ 
+--- Page 8 ---
+Database  
+PostgreSQL  
+TimescaleDB (time series)  
+Redis (caching)  
+ 
+Search  
+Elasticsearch  
+ 
+Infrastructure  
+Cloud:  
+AWS 
+or 
+GCP 
+Services:  
+Docker 
+Kubernetes  
+Terraform  
+ 
+Authentication  
+Auth0 
+or 
+Firebase Auth  
+ 
+8. Data Pipeline  
+News API ingestion  
+↓ 
+Article parsing  
+↓ 
+Event extraction  
+↓ 
+Sentiment analysis  
+↓ 
+Market mapping 
+↓ 
+Prediction engine  
+↓ 
+Dashboard update 
+Update cycle:  
+--- Page 9 ---
+Every 5–10 minutes 
+ 
+9. Core Database Schema  
+Users  
+id 
+email 
+password  
+preferences  
+ 
+Events  
+event_id  
+title 
+country 
+sector 
+impact 
+timestamp  
+confidence  
+ 
+Assets  
+ticker 
+name 
+sector 
+market 
+ 
+Event Asset Mapping  
+event_id  
+ticker 
+impact 
+ 
+Predictions  
+event_id  
+ticker 
+prediction  
+probability  
+ 
+Boards  
+board_id  
+user_id 
+title 
+description  
+--- Page 10 ---
+ 
+Pins 
+pin_id 
+board_id  
+content_ type 
+content_id  
+ 
+10. Novelty / Innovation  
+The novelty lies in event -driven market intelligence.  
+Most platforms show:  
+Price → Explanation  
+This platform does:  
+Event → Prediction → Market Reaction  
+AI-driven event -to-market mapping  is the key innovation.  
+ 
+11. Monetization  
+Free tier  
+• basic news  
+• limited predictions  
+• limited boards  
+ 
+Pro ($12 –20/month)  
+• advanced analytics  
+• full predictions  
+• unlimited boards  
+• alerts  
+ 
+Institutional tier  
+API access  
+$100–$500/month 
+--- Page 11 ---
+ 
+12. Risk Analysis  
+Risk 1 — Data licensing  
+Market APIs can be expensive.  
+Mitigation:  
+Use free tier APIs initially  
+ 
+Risk 2 — Prediction accuracy  
+Bad predictions reduce credibility.  
+Mitig ation:  
+display probabilities not guarantees  
+ 
+Risk 3 — News bias  
+Different sources have bias.  
+Mitigation:  
+multi-source aggregation  
+ 
+Risk 4 — Scalability  
+Real-time data pipelines require infrastructure.  
+Mitigation:  
+microservices  architecture  
+ 
+13. MVP Scope (First Version)  
+Must include ONLY:  
+Live geopolitics feed  
+Event classification  
+Market data panel  
+Event → market mapping  
+Basic prediction model  
+--- Page 12 ---
+User boards  
+Exclude initially:  
+mobile push alerts  
+advanced ML models  
+complex dashboards  
+ 
+14. Development Timeline  
+Phase 1 — Foundation (Month 1)  
+Backend 
+Database  
+News ingestion  
+Basic UI  
+ 
+Phase 2 — Intelligence Engine (Month 2)  
+NLP event extraction  
+Sector mapping  
+Market APIs  
+ 
+Phase 3 — Prediction Layer (Month 3)  
+ML model 
+Prediction engine  
+dashboard integration  
+ 
+Phase 4 — Mobile App (Month 4)  
+React Native app  
+user boards 
+notifications  
+ 
+15. Metrics for Success  
+Key metrics:  
+DAU (daily active users)  
+Time spent on platform  
+Prediction engagement  
+Board creations  
+ 
+--- Page 13 ---
+16. Next 3 Immediate Actions  
+1️⃣ Validate product positioning  
+Decide if you target:  
+Traders 
+Geopolitics enthusiasts  
+Both 
+ 
+2️⃣ Choose data sources  
+Shortlist:  
+NewsAPI 
+GDELT 
+Finnhub 
+ 
+3️⃣ Design the MVP architecture  
+Start with:  
+Next.js 
+FastAPI 
+PostgreSQL  
+Redis 
+ 
+💡 Important Insight  
+If executed properly, this project could become:  
+• a serious startup idea  
+• a top-tier ML/AI portfolio project  
+• a Bloomberg -style intelligence tool  
+ 
+
+
+============================================================
+D:\GeoAtlas\Architecture.pdf
+============================================================
+
+--- Page 1 ---
+1. System Architecture Overview  
+High -level architecture : 
+                USERS  
+          (Web + Mobile App)  
+                    │ 
+                    ▼ 
+             CDN + Load Balancer  
+                    │ 
+                    ▼ 
+                API Gateway  
+                    │ 
+        ┌─────────── ┼─────────── ┐ 
+        ▼           ▼           ▼ 
+  Auth Service   User Service   Market Service  
+                                  │ 
+                                  ▼ 
+                           Market Data APIs  
+                    (Polygon / Finnhub / AlphaVantage)  
+ 
+        ▼           ▼           ▼ 
+  Event Engine   Prediction Engine   Board Service  
+        │               │              │  
+        ▼               ▼              ▼ 
+  NLP Pipeline    ML Prediction     User Content  
+ 
+                    │ 
+                    ▼ 
+             Message Queue (Kafka)  
+                    │ 
+                    ▼ 
+--- Page 2 ---
+              Data Processing Layer  
+                    │ 
+                    ▼ 
+               Core Databases  
+                    │ 
+                    ▼ 
+             Analytics / Search  
+ 
+2. Frontend Layer  
+Two clients share the same API.  
+Web Application  
+Tech stack:  
+Next.js 
+TypeScript  
+TailwindCSS  
+ShadCN UI 
+React Query 
+Recharts  
+Features:  
+• event dashboard  
+• market panels  
+• intelligence boards  
+• asset analytics  
+• global map visualization  
+ 
+Mobile Application  
+Tech stack:  
+React Native 
+Expo 
+TypeScript  
+Features:  
+• real-time alerts  
+--- Page 3 ---
+• event feed  
+• watchlists  
+• board management  
+ 
+3. API Gateway  
+Single entry poin t for all requests.  
+Tools:  
+NGINX 
+Kong 
+AWS API Gateway  
+Responsibilities:  
+rate limiting  
+authentication  
+routing 
+request logging  
+ 
+4. Backend Microservices  
+The backend is divided into domain services . 
+ 
+1. User Service  
+Handles:  
+accounts  
+authentication  
+preferences  
+subscriptions  
+Tech:  
+FastAPI 
+PostgreSQL  
+JWT 
+ 
+2. Event Intelligence Service  
+Processes news and extracts structured geopolitical events.  
+--- Page 4 ---
+Pipeline:  
+News ingestion  
+↓ 
+NLP extraction  
+↓ 
+Event classification  
+↓ 
+Impact tagging  
+Tech:  
+Python 
+spaCy 
+Transformers  
+FastAPI 
+Example event:  
+{ 
+ event: "China bans rare earth exports" , 
+ region: "China", 
+ sector: "EV supply chain" , 
+ assets: [ "TSLA","BYD"], 
+ impact: "negative"  
+} 
+ 
+3. Market Data Service  
+Handles:  
+live prices  
+market metadata  
+historical data 
+APIs used:  
+Finnhub 
+Polygon 
+Alpha Vantage  
+Yahoo Finance  
+Cached via:  
+Redis 
+ 
+4. Prediction Service  
+AI system that predicts market reaction to events.  
+Inputs:  
+--- Page 5 ---
+news sentiment  
+historical market reaction  
+macro indicators  
+Models:  
+LSTM 
+Transformer  sentiment  model 
+Gradient  boosting  
+Frameworks:  
+PyTorch 
+scikit-learn 
+HuggingFace  
+ 
+5. Board / Knowledge Graph Service  
+Handles:  
+Pinterest -style boards  
+pins 
+collections  
+shared insights  
+Example:  
+Board: US –China Tec h War 
+Pins: 
+• Nvidia export ban 
+• Semiconductor supply chain  
+• TSMC market reaction  
+ 
+5. Data Ingestion Pipeline  
+This is one of the most important systems.  
+Architecture:  
+News APIs 
+RSS Feeds  
+Think Tank Reports  
+Government Releases  
+Pipeline:  
+Ingestion Worker  
+↓ 
+Kafka Event Stream 
+↓ 
+NLP Processing  
+--- Page 6 ---
+↓ 
+Event Classification  
+↓ 
+Market Mapping  
+↓ 
+Prediction Engine  
+↓ 
+Database  
+Tools:  
+Apache Kafka 
+Celery 
+Airflow 
+ 
+6. Message Queue (Real -Time Event 
+Processing)  
+Kafka handles stream processing . 
+Use cases:  
+news ingestion  
+event extraction  
+prediction updates  
+alert triggers  
+Example pipeline:  
+News Article 
+→ Kafka topic  
+→ NLP Worker  
+→ Event Classification  
+→ Market Mapping  
+→ Prediction Engine  
+ 
+7. Databases  
+Use polyglot persistence . 
+ 
+1. Primary Database  
+PostgreSQL  
+Stores:  
+--- Page 7 ---
+users 
+events 
+assets 
+boards 
+predictions  
+ 
+2. Time -Series Database  
+TimescaleDB  
+Stores:  
+market prices 
+volume 
+historical indicators  
+ 
+3. Cache Layer  
+Redis 
+Stores:  
+market prices 
+API results  
+session tokens  
+ 
+4. Search Engine  
+Elasticsearch  
+Used for:  
+news search 
+event filtering  
+asset search 
+ 
+8. AI / ML Infrastructure  
+The ML stack is separate from backend.  
+Architecture:  
+Prediction API  
+↓ 
+ML Model Server 
+↓ 
+Feature Store  
+--- Page 8 ---
+↓ 
+Training Pipelines  
+Frameworks:  
+PyTorch 
+MLflow 
+HuggingFace  
+Deployment:  
+TorchServe  
+or 
+FastAPI model server  
+ 
+9. Infrastructure (Cloud)  
+Recommended provider:  
+AWS 
+Services:  
+EC2 
+EKS (Kubernetes)  
+S3 
+CloudFront  
+RDS 
+ElastiCache  
+MSK (Kafka) 
+ 
+10. DevOps Pipeline  
+CI/CD pipeline:  
+GitHub 
+↓ 
+GitHub Actions  
+↓ 
+Docker Build  
+↓ 
+Kubernetes Deployment  
+Infrastructure management:  
+Terraform  
+ 
+11. Security Layer  
+--- Page 9 ---
+Essential security measures.  
+Authentication:  
+JWT 
+OAuth 
+Auth0 
+Protection:  
+API rate limiting  
+DDoS protection  
+input validation  
+RBAC 
+ 
+12. Notification System  
+Alerts trigg ered when events affect tracked assets.  
+Example:  
+Event detected:  
+China restricts  chip exports 
+ 
+User tracking:  
+NVDA 
+ 
+Notification:  
+High volatility  expected  
+Channels:  
+mobile push 
+email 
+web notifications  
+Tools:  
+Firebase  
+AWS SNS 
+ 
+13. Scalability Strategy  
+System designed for growth.  
+Horizontal scaling:  
+Kubernetes auto-scaling 
+Caching:  
+--- Page 10 ---
+Redis 
+Event streaming:  
+Kafka partitions  
+ 
+14. Observability  
+Monitoring tools:  
+Prometheus  
+Grafana 
+ELK stack  
+Tracks:  
+API latency 
+ML model performance  
+pipeline health  
+ 
+15. Development Phases  
+Phase 1 — MVP (2 months)  
+Build:  
+news feed  
+event classification  
+market dashboard  
+ 
+Phase 2 — Intelligence Engine  
+Add:  
+AI event extraction  
+impact mapping  
+prediction models  
+ 
+Phase 3 — Platform Features  
+Add:  
+boards 
+alerts 
+mobile app  
+--- Page 11 ---
+ 
+16. Estimated System Scale  
+Target scale:  
+100k users 
+10k daily events  
+100M market records  
+Architecture supports:  
+millions of events 
+real-time data 
+ 
+17. Strategic Insight  
+The true moat  of this product is data intelligence , not UI.  
+Your competitive advantage will be:  
+Event → Market Mapping Dataset  
+Over time this becomes a proprietary geopolitical intelligence dataset . 
+That is extremely valuable.  
+ 
+
+
+============================================================
+D:\GeoAtlas\Database Architecture.pdf
+============================================================
+
+--- Page 1 ---
+Below is a  production -grade relational schem a optimized for:  
+• event intelligence  
+• financial markets  
+• AI prediction  
+• user knowledge boards  
+• high-volume time -series data  
+ 
+1. Database Architecture Overview  
+We will use  three data storage layers : 
+1. Relational Core Database  
+Stores structured entities.  
+PostgreSQL  
+Contains:  
+• users  
+• events  
+• assets  
+• boards  
+• predictions  
+ 
+2. Time Series Database  
+Stores price data.  
+TimescaleDB  
+Contains:  
+• stock prices  
+• crypto prices  
+• commodity prices  
+ 
+3. Search Database  
+Elasticsearch  
+Used for:  
+--- Page 2 ---
+• searching events  
+• searching news  
+• searching assets  
+ 
+2. Core Entity Model  
+Core relationship:  
+EVENT 
+   ↓ 
+EVENT IMPACT 
+   ↓ 
+ASSET 
+   ↓ 
+PRICE DATA  
+   ↓ 
+PREDICTIONS  
+Example:  
+Event: 
+Russia oil refinery attack  
+ 
+Assets: 
+Brent Crude  
+Exxon 
+Chevron 
+ 
+Prediction:  
+Oil ↑ 5%  
+Energy stocks ↑  
+ 
+3. Users Table  
+Stores platform users.  
+users 
+----- 
+id (UUID PK)  
+email 
+password_hash  
+username  
+role 
+created_at  
+updated_at  
+Optional:  
+subscription_plan  
+alert_preferences  
+--- Page 3 ---
+ 
+4. Assets Table  
+Represents financial instruments.  
+assets 
+------ 
+id (UUID PK)  
+ticker 
+name 
+asset_type  
+sector 
+industry  
+country 
+exchange  
+currency  
+created_at  
+Example rows:  
+NVDA 
+TSLA 
+BTC 
+Gold 
+Brent Crude  
+Asset types:  
+stock 
+etf 
+commodity  
+crypto 
+forex 
+index 
+ 
+5. Events Table  
+Represents geopolitical or macroeconomic events.  
+events 
+------ 
+id (UUID PK)  
+title 
+description  
+event_type  
+country 
+region 
+severity  
+source 
+source_url  
+published_at  
+created_at  
+--- Page 4 ---
+Example:  
+China bans gallium exports 
+Event types:  
+conflict  
+sanction  
+trade policy 
+economic data  
+energy disruption  
+election  
+regulation  
+Severity scale:  
+1–5 
+ 
+6. Event Tags Table  
+Allows flexible tagging.  
+event_tags  
+----------  
+id 
+event_id  
+tag 
+Example:  
+china 
+semiconductors  
+rare earth metals  
+trade war  
+ 
+7. Event Impact Table  
+This is  one of the m ost important tables . 
+Maps events to assets.  
+event_impacts  
+-------------  
+id 
+event_id  
+asset_id  
+impact_direction  
+impact_strength  
+confidence_score  
+created_at  
+--- Page 5 ---
+Example:  
+event: Russia refinery attack  
+asset: Brent Crude  
+impact_direction: positive  
+impact_strength: 0.8  
+confidence: 0.65  
+Impact directions:  
+positive  
+negative  
+neutral 
+ 
+8. Predictions Table  
+Stores AI -generated predictions.  
+predictions  
+-----------  
+id 
+event_id  
+asset_id  
+predicted_change  
+prediction_horizon  
+confidence_score  
+model_version  
+created_at  
+Example:  
+predicted_change  = +4.3% 
+prediction_horizon  = 24h 
+confidence  = 0.67 
+Prediction horizons:  
+1h 
+6h 
+24h 
+7d 
+30d 
+ 
+9. Market Prices (Time -Series)  
+Stored in  TimescaleDB . 
+market_prices  
+-------------  
+id 
+asset_id  
+--- Page 6 ---
+timestamp  
+open 
+high 
+low 
+close 
+volume 
+Example:  
+timestamp:  2026-03-12 10:30 
+asset: NVDA 
+price: 905.22 
+Indexes required:  
+asset_id  
+timestamp  
+ 
+10. News Articles Table  
+Stores raw news articles.  
+news_articles  
+-------------  
+id 
+title 
+content 
+source 
+url 
+published_at  
+sentiment_score  
+created_at  
+ 
+11. Event Article Mapping  
+Links articles to events.  
+event_articles  
+--------------  
+id 
+event_id  
+article_id  
+relevance_score  
+This allows  multiple articles per event . 
+ 
+12. Boards Table (Pint erest Feature)  
+--- Page 7 ---
+User boards.  
+boards 
+------ 
+id 
+user_id 
+title 
+description  
+visibility  
+created_at  
+Visibility:  
+public 
+private 
+ 
+13. Pins Table  
+Items saved to boards.  
+pins 
+---- 
+id 
+board_id  
+content_type  
+content_id  
+created_at  
+Content types:  
+event 
+asset 
+prediction  
+news 
+ 
+14. User Watchlist  
+Tracks assets users follow.  
+watchlists  
+----------  
+id 
+user_id 
+asset_id  
+created_at  
+ 
+15. Alerts Table  
+Stores alert rules.  
+--- Page 8 ---
+alerts 
+------ 
+id 
+user_id 
+asset_id  
+event_type  
+threshold  
+created_at  
+Example:  
+Alert: 
+Notify when energy-related events affect oil  
+ 
+16. Index Strategy  
+Indexes are critical.  
+Recommended:  
+events(published_at)  
+events(country)  
+events(event_type)  
+ 
+event_impacts (asset_id)  
+ 
+market_prices (asset_id, timestamp)  
+ 
+news_articles (published_at)  
+ 
+17. Example Query  
+Example:  
+Find assets affected by an event  
+SELECT 
+assets.ticker,  
+event_impacts.impact_direction,  
+event_impacts.confidence_score  
+FROM event_impacts  
+JOIN assets 
+ON assets.id = event_impacts.asset_id  
+WHERE event_impacts.event_id = 'EVENT123' ; 
+ 
+18. Example Data Flow  
+Pipeline:  
+--- Page 9 ---
+News Article 
+↓ 
+news_articles table 
+↓ 
+NLP extracts event  
+↓ 
+events table 
+↓ 
+impact mapping  
+↓ 
+event_impacts table 
+↓ 
+AI prediction  
+↓ 
+predictions table 
+ 
+19. Scaling Strategy  
+As the system grows:  
+Add:  
+partitioning for market_prices  
+read replicas  
+Redis caching  
+ 
+20. Strategic Insight  
+The most valuable dataset  will be:  
+Event → Asset Impact → Market Reaction  
+Over time you will accumulate:  
+10k+ geopolitical events 
+100k+ asset reactions  
+This becomes  a proprietary geopolitical intelligence dataset , which even hedge funds 
+value.  
+ 
+
+
+============================================================
+D:\GeoAtlas\news ingestions.pdf
+============================================================
+
+--- Page 1 ---
+1. Situation Analysis  
+Your system must continuously:  
+1. Collect global  news  
+2. Process articles  
+3. Detect geopolitical events  
+4. Map events to sectors and assets  
+5. Send them to the prediction engine  
+This pipeline must run  automatically and reliably . 
+ 
+2. Core Insight  
+The key innovation is  transforming unstructured news into structured geopolitical 
+events . 
+Raw news:  
+"China restricts gallium exports citing national security concerns."  
+Structured event:  
+Event Type:  Trade Policy 
+Country:  China 
+Sector: Semiconductors  
+Affected Assets:  NVDA, TSM, AMD 
+Impact: Negative  
+Confidence:  0.71 
+Your platform's moat becomes the  Event → Market Impact dataset . 
+ 
+3. Strategic Architecture  
+News Intelligence Pipeline:  
+News Sources  
+↓ 
+Ingestion Service  
+↓ 
+Raw Article Database  
+↓ 
+NLP Event Extraction  
+↓ 
+Event Classification  
+↓ 
+--- Page 2 ---
+Market Mapping  
+↓ 
+Prediction Engine  
+↓ 
+Dashboard  
+ 
+4. News Ingestion Service (Step 2)  
+This service  continuously collects global news . 
+Data Sources  
+Start with reliable APIs:  
+NewsAPI 
+GDELT 
+EventRegistry  
+Mediastack  
+Reuters RSS  
+AP RSS 
+Al Jazeera RSS  
+RSS is very important bec ause:  
+• free 
+• reliable  
+• large coverage  
+ 
+5. News Ingestion Architecture  
+Pipeline:  
+Scheduler  
+↓ 
+Fetch News 
+↓ 
+Normalize  Articles  
+↓ 
+Deduplicate  
+↓ 
+Store Articles  
+↓ 
+Send to NLP Pipeline  
+ 
+6. News Ingestion Tech Stack  
+Backend worker:  
+--- Page 3 ---
+Python 
+FastAPI 
+Celery 
+Redis 
+PostgreSQL  
+Scheduling:  
+Apache Airflow  
+or 
+Celery Beat  
+ 
+7. Example News Ingestion Code  
+Basic ingestion worker.  
+import requests  
+import psycopg2  
+ 
+API_KEY = "newsapi_key"  
+ 
+url = f"https://newsapi.org/v2/top -
+headlines?category=business&apiKey= {API_KEY} " 
+ 
+response = requests.get(url).json()  
+ 
+articles = response[ "articles" ] 
+ 
+for article in articles:  
+    title = article[ "title"] 
+    content = article[ "content" ] 
+    source = article[ "source" ]["name"] 
+    url = article[ "url"] 
+ 
+    insert_query = """ 
+    INSERT INTO news_articles (title, content, source, url)  
+    VALUES (%s, %s, %s, %s)  
+    """ 
+ 
+    cursor.execute(insert_que ry, (title, content, source, url))  
+ 
+8. Deduplication System  
+News often appears across multiple outlets.  
+Solution:  
+Use content hashing . 
+Example:  
+SHA256(title + description)  
+--- Page 4 ---
+If hash already exists:  
+skip article 
+ 
+9. Article Processing Queue  
+Once articles are stored:  
+They go into  Kafka topic or task queue . 
+news_articles  
+↓ 
+NLP queue  
+↓ 
+event extraction  
+Tools:  
+Kafka 
+Celery 
+RabbitMQ  
+ 
+10. Event Extraction NLP Model (Step 3)  
+This model converts articles into  structured events . 
+Pipeline:  
+Article 
+↓ 
+NER (Entity Detection)  
+↓ 
+Event Classification  
+↓ 
+Sector Mapping 
+↓ 
+Asset Mapping 
+ 
+11. Named Entity Recognition  
+Extract key entities.  
+Example:  
+China 
+Taiwan 
+TSMC 
+Nvidia 
+--- Page 5 ---
+Semiconductors  
+Libraries:  
+spaCy 
+HuggingFace transformers  
+Example:  
+import spacy 
+ 
+nlp = spacy.load( "en_core_web_trf" ) 
+ 
+doc = nlp(article_text)  
+ 
+for ent in doc.ents:  
+    print(ent.text, ent.label_)  
+Outp uts: 
+China → GPE 
+TSMC → ORG  
+Nvidia → ORG  
+ 
+12. Event Classification Model  
+Classifies event types.  
+Example categories:  
+Conflict  
+Sanctions  
+Trade policy 
+Energy disruption  
+Regulation  
+Elections  
+Economic data  
+Model options:  
+BERT classifier  
+RoBERTa 
+DistilBERT  
+Example training input:  
+Text: 
+"China bans gallium exports."  
+ 
+Label: 
+Trade Policy  
+ 
+--- Page 6 ---
+13. Sentiment Analysis  
+Detects market sentiment.  
+Example:  
+negative  sentiment → bearish  
+positive sentimen t → bullish  
+Model:  
+FinBERT 
+ 
+14. Sector Mapping  
+Map events to sectors.  
+Example:  
+Event: 
+China restricts chip exports  
+ 
+Sector: 
+Semiconductors  
+Sector taxonomy:  
+Energy 
+Technology  
+Defense 
+Agriculture  
+Metals 
+Shipping  
+Banking 
+ 
+15. Asset Mapping  
+Map sectors to assets.  
+Example table:  
+Semiconductors  
+→ NVDA 
+→ AMD 
+→ TSM 
+This mapping can initially be  rule-based . 
+--- Page 7 ---
+Example:  
+if sector == "Energy" : 
+    assets = [ "XOM", "CVX", "BP"] 
+Later you can train mo dels. 
+ 
+16. Example Event Extraction Output  
+Final structured event:  
+{ 
+ "title": "China restricts gallium exports" , 
+ "event_type" : "Trade Policy" , 
+ "country" : "China", 
+ "sector" : "Semiconductors" , 
+ "affected_assets" : ["NVDA","AMD","TSM"], 
+ "impact" : "negative" , 
+ "confidence" : 0.74 
+} 
+This is saved to:  
+events 
+event_impacts  
+ 
+17. Performance Requirements  
+Pipeline must support:  
+1000+ articles per hour 
+real-time updates 
+Latency target:  
+< 30 seconds per event 
+ 
+18. Scaling Strategy  
+For scale:  
+Kafka partitions  
+NLP workers  
+GPU inference  
+Model serving:  
+--- Page 8 ---
+TorchServe  
+FastAPI 
+ 
+19. Risk Analysis  
+Risk 1 — False event detection  
+Mitigation:  
+confidence  threshold  
+human verification initially  
+ 
+Risk 2 — News bias  
+Mitigation:  
+multi-source aggregation  
+ 
+Risk 3 — Data overload  
+Mitigation:  
+filter by geopolitical keywords  
+ 
+20. Tactical Execution P lan 
+Week 1  
+Set up news ingestion  
+store articles  
+Week 2  
+NER extraction  
+entity database  
+Week 3  
+event classifier  
+Week 4  
+sector mapping 
+asset mapping 
+ 
+
+
+============================================================
+D:\GeoAtlas\GeoAtlas_Production_Improvement_Report.pdf
+============================================================
+
+--- Page 1 ---
+GEOATLAS
+Production-Grade
+Improvement Report
+A critical engineering review of the six most underestimated areas in the GeoAtlas
+architecture — with concrete, production-ready solutions.
+Document Type
+Engineering Review
+Product
+GeoAtlas Intelligence Platform
+Version
+1.0
+Date
+March 2026
+Classification
+Internal / Confidential
+
+--- Page 2 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 2
+Table of Contents
+01 Executive Summary
+02 NLP Pipeline — Underestimated Complexity
+■ Root Cause Analysis
+■ Production Architecture
+■ Implementation Roadmap
+03 Prediction Engine — Critical Gaps
+■ Training Data Problem
+■ Model Architecture
+■ Validation Framework
+04 Asset Mapping — Beyond Rule-Based Logic
+■ Knowledge Graph Design
+■ Dynamic Mapping System
+■ Schema Design
+05 Microservices — Premature Decomposition
+■ The Monolith-First Principle
+■ Migration Strategy
+■ Service Boundaries
+06 Market Data API — Cost Architecture
+■ API Tier Analysis
+■ Caching Strategy
+■ Budget Model
+07 Data Quality & Feedback Loops
+■ Quality Control Pipeline
+■ Human-in-the-Loop
+■ Accuracy Metrics
+08 Revised Development Timeline
+09 Production Risk Matrix
+
+--- Page 3 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 3
+SECTION 01
+Executive Summary
+Six critical areas requiring production-grade redesign
+The GeoAtlas architecture documents present a coherent high-level vision. However, a production
+readiness review identifies six areas where the current design is significantly underspecified,
+underestimated, or carries architectural risk that would cause system failure or quality degradation at
+scale. This report addresses each area with concrete, actionable production-grade solutions.
+Area
+Severity
+Current State
+Impact if Unresolved
+NLP Pipeline
+CRITICAL
+4-week estimate for classifier
+Wrong event classification → bad
+predictions
+Prediction Engine
+CRITICAL
+No training data strategy
+Models with no ground truth to train on
+Asset Mapping
+HIGH
+Simple if/else rules
+Misses nuanced event-asset
+relationships
+Microservices
+HIGH
+6 services from day one
+Massive operational overhead for
+MVP
+Market Data Costs
+MEDIUM
+Free tiers assumed
+Rate limits block real-time feature
+Data Quality
+MEDIUM
+No feedback loop defined
+Dataset degrades silently over time
+
+--- Page 4 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 4
+SECTION 02
+NLP Pipeline
+The most underestimated component in the entire system
+Root Cause Analysis
+The architecture documents allocate one week for NER extraction and one week for event classification. In
+practice, building a reliable geopolitical NLP classifier requires a labelled training corpus, domain
+adaptation of base models, evaluation loops, and human verification before any data is trusted. The
+realistic timeline is 6–10 weeks for a production-quality pipeline.
+■ Critical Gap: The documents assume off-the-shelf spaCy NER will work on geopolitical text.
+Standard en_core_web_trf is trained on news and web text but does not reliably identify sanctions,
+trade policy actors, or supply chain entities without fine-tuning.
+Production NLP Architecture
+A production-grade NLP pipeline requires five distinct stages, each with its own model, evaluation metric,
+and failure mode:
+Stage
+Model
+Input
+Output
+Accuracy Target
+Language Detection
+langdetect / fastText
+Raw article
+Language code
+> 99%
+Relevance Filter
+DistilBERT classifier
+Article text
+Geopolitical: Y/N
+> 92%
+NER Extraction
+spaCy + fine-tuned trf
+Relevant articles
+Entities + labels
+> 88% F1
+Event Classification
+RoBERTa fine-tuned
+Article + entities
+Event type
+> 85% F1
+Sentiment Scoring
+FinBERT
+Article text
+Sentiment score
+Pearson > 0.75
+Training Data Strategy
+The single most important missing piece. A classifier is only as good as its training data. The following
+sources provide labelled geopolitical event data without requiring manual annotation from scratch:
+■GDELT Event Database — 300M+ coded geopolitical events since 1979 with CAMEO codes. Free.
+Use as weak supervision labels.
+■ACLED (Armed Conflict Location & Event Data) — 1M+ conflict events with structured labels. Free
+for researchers.
+■ICEWS (Integrated Crisis Early Warning System) — US govt-funded event dataset with
+actor/action/target coding.
+■Reuters/AP historical archives — Pair with GDELT dates to create text→event label pairs.
+■Human annotation (Phase 2) — Once MVP is live, use internal tools to correct and relabel
+predictions.
+
+--- Page 5 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 5
+Production Code Pattern — Confidence Gating
+Never write an event to the database without a confidence gate. Low-confidence events should go to a
+human review queue, not production:
+event_classifier.py
+class EventClassifier:
+CONFIDENCE_THRESHOLD = 0.72
+HUMAN_REVIEW_THRESHOLD = 0.55
+def classify(self, article: str) -> ClassificationResult:
+result = self.model.predict(article)
+if result.confidence >= self.CONFIDENCE_THRESHOLD:
+return result.with_status('AUTO_APPROVED')
+elif result.confidence >= self.HUMAN_REVIEW_THRESHOLD:
+self.review_queue.enqueue(article, result)
+return result.with_status('PENDING_REVIEW')
+else:
+return result.with_status('REJECTED')
+Revised NLP Timeline
+Week
+Deliverable
+Validation Gate
+1–2
+Data pipeline: GDELT ingestion + article storage
+10k articles stored, deduplicated
+3–4
+Relevance classifier: DistilBERT on geo keywords
+Precision > 90% on test set
+5–6
+NER fine-tuning on GDELT-paired text
+F1 > 85% on held-out articles
+7–8
+Event type classifier (RoBERTa)
+F1 > 82% across 7 event categories
+9–10
+FinBERT sentiment + confidence gating + review queue
+< 5% false event rate
+11–12
+Integration testing + shadow mode vs. production
+Latency < 30s per article
+
+--- Page 6 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 6
+SECTION 03
+Prediction Engine
+The hardest component — currently underspecified
+The documents list LSTM + Transformer + Gradient Boosting as the prediction models, but do not address
+the fundamental question: what data are these models trained on? Without a labelled historical dataset of
+event→market reactions, no model can be trained. This section defines the complete production-grade
+prediction architecture.
+The Training Data Problem
+■ Critical Gap: The prediction documents assume training data exists. It does not. Building it is a
+2–3 month effort that must be treated as a separate workstream.
+The ground truth dataset must be constructed by joining historical events with subsequent price
+movements. The construction pipeline:
+■Step 1 — Event Corpus: Use GDELT + ACLED to get 50,000+ historical geopolitical events with
+timestamps.
+■Step 2 — Price Alignment: For each event, fetch T+1h, T+6h, T+24h, T+7d price data for affected
+assets via Polygon historical API.
+■Step 3 — Label Generation: Compute percentage change. Apply thresholds: >2% = positive signal,
+<-2% = negative, else = neutral.
+■Step 4 — Feature Engineering: Event type, sentiment score, region, sector, macro regime (VIX
+level, rate environment).
+■Step 5 — Train/Test Split: Split chronologically, not randomly. Never let future events leak into
+training.
+Production Model Architecture
+A single model is insufficient. Production requires an ensemble with specialised sub-models, each
+targeting a specific prediction horizon:
+Model
+Type
+Horizon
+Input Features
+Output
+ShortPulse
+FinBERT + Linear head
+1h – 6h
+Sentiment, event type, VIX
+Direction + prob
+TrendForce
+Gradient Boosting (XGBoost)
+24h – 7d
+Macro indicators, sector, hist. reactions
+% change range
+VolatilityNet
+LSTM
+1h – 24h
+Price history, options IV, volume
+Volatility spike prob
+RegimeFilter
+Random Forest
+Always-on
+VIX, yield curve, DXY, sector flows
+Market regime
+Prediction Validation Framework
+
+--- Page 7 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 7
+Every prediction must be tracked against actual market outcomes. This is not optional — it is the
+foundation of user trust and model improvement:
+prediction_tracker.py
+# predictions table — add these columns:
+predicted_direction VARCHAR(8) -- 'UP' | 'DOWN' | 'NEUTRAL'
+predicted_change_pct FLOAT
+predicted_at TIMESTAMPTZ
+resolve_at TIMESTAMPTZ -- T + horizon
+actual_change_pct FLOAT -- filled by cron job at resolve_at
+outcome VARCHAR(8) -- 'CORRECT' | 'WRONG' | 'PARTIAL'
+model_version VARCHAR(16)
+-- Accuracy dashboard query:
+SELECT model_version,
+COUNT(*) FILTER (WHERE outcome='CORRECT') * 100.0 / COUNT(*) AS accuracy,
+AVG(ABS(predicted_change_pct - actual_change_pct)) AS avg_error
+FROM predictions
+GROUP BY model_version, prediction_horizon;
+✓ Production Rule: Ship v1 predictions only for event types where back-test accuracy exceeds
+60%. Display accuracy score on the UI. Transparency builds more trust than hiding uncertainty.
+
+--- Page 8 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 8
+SECTION 04
+Asset Mapping
+Rule-based logic will fail at production scale
+The current architecture maps events to assets using static sector rules (if sector == 'Energy': assets =
+['XOM', 'CVX', 'BP']). This approach breaks immediately when events cross sectors, when new assets
+enter the market, or when an event has nuanced, company-specific implications. A knowledge graph is the
+correct production solution.
+■ High Risk: A "China rare earth restriction" event is not just a Semiconductors event. It affects EV
+manufacturers, defence contractors, wind turbine companies, and specific mining stocks — none of
+which appear in a flat sector→ticker list.
+Knowledge Graph Design
+Replace the flat sector→asset list with a multi-dimensional relationship graph stored in PostgreSQL (using
+recursive CTEs) or Neo4j for complex traversals:
+knowledge_graph_schema.sql
+-- Nodes
+CREATE TABLE kg_entities (
+id UUID PRIMARY KEY,
+entity_type VARCHAR(20), -- 'ASSET' | 'SECTOR' | 'COUNTRY' | 'COMMODITY'
+name VARCHAR(100),
+metadata JSONB
+);
+-- Edges (directional relationships)
+CREATE TABLE kg_relationships (
+id UUID PRIMARY KEY,
+source_id UUID REFERENCES kg_entities(id),
+target_id UUID REFERENCES kg_entities(id),
+relationship VARCHAR(40), -- 'SUPPLIES_TO' | 'COMPETES_WITH'
+strength FLOAT, -- 0.0 to 1.0
+data_source VARCHAR(30), -- 'MANUAL' | 'SEC_FILING' | 'ML_DERIVED'
+last_verified DATE
+);
+Dynamic Mapping Layers
+Asset mapping should operate in three layers, applied in order of specificity:
+Layer
+Method
+Coverage
+Latency
+L1 — Direct Mention
+NER entity matching to asset ticker
+~40% of events
+< 10ms
+
+--- Page 9 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 9
+L2 — Supply Chain
+Knowledge graph traversal (2-hop)
+~35% of events
+< 50ms
+L3 — Sector Expansion
+Sector→asset with relevance weighting
+~20% of events
+< 20ms
+L4 — ML Similarity
+Embedding similarity on past events
+~5% (edge cases)
+< 200ms
+Seeding the Knowledge Graph
+The graph does not need to be built manually from scratch. These free data sources can seed 80%+ of the
+required relationships:
+■SEC EDGAR filings — 10-K filings list key suppliers and customers. Parse with EDGAR full-text
+search API (free).
+■OpenCorporates — Company-country-sector relationships. Free tier available.
+■Wikidata SPARQL — Industry classifications, parent companies, subsidiaries. Completely free.
+■FactSet/Refinitiv supply chain data — Paid, but consider for institutional tier clients only.
+■ML-derived edges — Train a co-movement model: if two assets consistently move together after
+events, add a 'CORRELATED' edge.
+
+--- Page 10 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 10
+SECTION 05
+Microservices Architecture
+Six services from day one is an operational anti-pattern for an MVP
+The architecture documents specify six independent microservices at launch: Auth, User, Market, Event
+Intelligence, Prediction, and Board. Each service requires its own deployment pipeline, health checks,
+inter-service networking, distributed tracing, and on-call runbook. For a team building an MVP, this
+overhead consumes engineering time that should go toward the product.
+■ High Risk: Martin Fowler's "Microservice Premium" principle states: microservices add complexity
+that only pays off at team scale (5+ engineers per service). Premature decomposition is one of the
+most common reasons early-stage products fail to ship.
+The Modular Monolith Approach
+A modular monolith gives you the internal code organisation of microservices without the operational
+overhead. Each module is a Python package with strict import boundaries — it can be extracted into a
+service later with minimal refactoring:
+project structure — modular monolith
+geoatlas/
+■■■ main.py # FastAPI app, mounts all routers
+■■■ core/
+■ ■■■ config.py
+■ ■■■ database.py
+■■■ modules/
+■ ■■■ users/ # User module — owns its own models + routes
+■ ■ ■■■ router.py
+■ ■ ■■■ service.py
+■ ■ ■■■ models.py
+■ ■■■ events/ # Event intelligence module
+■ ■ ■■■ router.py
+■ ■ ■■■ nlp_pipeline.py
+■ ■ ■■■ models.py
+■ ■■■ market/ # Market data module
+■ ■■■ predictions/ # Prediction module
+■ ■■■ boards/ # Boards module
+■■■ workers/ # Celery tasks (can become separate worker later)
+Migration Strategy — When to Split
+Extract a module into a standalone service only when one of these thresholds is met:
+
+--- Page 11 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 11
+Trigger
+Module to Extract
+Reason
+NLP pipeline consuming > 60% of CPU
+Event Intelligence
+GPU inference needs dedicated resources
+ML predictions taking > 5s
+Prediction Service
+Needs GPU, separate scaling
+Market data cache invalidating too frequently
+Market Service
+High-frequency vs. low-frequency mismatch
+User auth becoming a security audit target
+Auth Service
+Compliance isolation
+Team size reaches 6+ engineers
+All modules
+Conway's Law — structure follows org
+✓ Recommendation: Start with a single FastAPI monolith + Celery workers. Extract the NLP
+pipeline and Prediction Service as standalone workers in Month 3, when their resource profiles
+diverge from the main application.
+
+--- Page 12 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 12
+SECTION 06
+Market Data API Cost Architecture
+Free tiers cannot support a real-time platform
+The product requires real-time prices for stocks, ETFs, commodities, crypto, and forex across hundreds of
+assets. The architecture documents suggest starting with free API tiers, but a realistic analysis of those
+limits shows they are incompatible with the stated feature set.
+API Tier Reality Check
+Provider
+Free Tier Limit
+Adequate for MVP?
+Paid Tier Cost
+Polygon.io
+5 calls/min, delayed 15min
+No — delayed data breaks real-time
+$29/mo starter
+Finnhub
+60 calls/min, delayed
+No — no WebSocket on free
+$50/mo basic
+Alpha Vantage
+5 calls/min, 500/day
+No — 500/day < 1 asset real-time
+$50/mo
+Twelve Data
+8 calls/min, 800/day
+Marginal — only for < 10 assets
+$29/mo
+Yahoo Finance
+Unofficial, unreliable
+No — no SLA, breaks regularly
+N/A
+Production Caching Architecture
+The correct strategy is not to upgrade API tiers immediately, but to cache aggressively and fetch
+intelligently. With proper caching, a $29/mo Polygon plan can serve hundreds of concurrent users:
+market_cache_strategy.py
+CACHE_POLICY = {
+'realtime_price': {'ttl': 15, 'layer': 'redis'},
+'daily_ohlcv': {'ttl': 3600, 'layer': 'redis'},
+'historical_1y': {'ttl': 86400, 'layer': 'postgres'},
+'fundamentals': {'ttl': 604800,'layer': 'postgres'},
+}
+# WebSocket multiplexing: ONE connection to Polygon,
+# fan-out to ALL subscribed users via internal pub/sub
+class MarketDataHub:
+def __init__(self):
+self.polygon_ws = PolygonWebSocket(api_key=...)
+self.subscribers: dict[str, list[WebSocket]] = {}
+async def broadcast(self, ticker, price_data):
+for ws in self.subscribers.get(ticker, []):
+await ws.send_json(price_data)
+Recommended Budget Model (MVP Phase)
+
+--- Page 13 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 13
+Item
+Provider
+Cost/Month
+Covers
+Real-time stock/ETF
+Polygon Starter
+$29
+WebSocket, unlimited symbols
+Crypto prices
+CoinGecko Pro
+$129
+500+ coins, 30-day history
+News API
+NewsAPI Business
+$449
+500 req/day + archives
+Forex/Commodities
+Twelve Data
+$29
+Forex + commodity prices
+Infrastructure (AWS)
+EC2+RDS+Redis
+~$120
+2 EC2 t3.medium, RDS, ElastiCache
+<b>Total MVP</b>
+<b>~$756</b>
+Sufficient for 0–5k users
+
+--- Page 14 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 14
+SECTION 07
+Data Quality & Feedback Loops
+Without feedback, your proprietary dataset degrades silently
+The documents repeatedly claim that the Event→Asset Impact dataset is the core competitive moat. This
+is only true if the data is accurate. A dataset of 10,000 poorly classified events is not a moat — it is a
+liability. Data quality must be a first-class engineering concern from day one, not a post-MVP cleanup task.
+The Three-Layer Quality Pipeline
+Layer 1 — Automated Quality Gates (runs before every database write):
+■Confidence threshold gate: reject events with confidence < 0.55
+■Schema validation: all required fields must be non-null
+■Duplicate detection: SHA256 hash of (title + event_type + country + published_date)
+■Temporal consistency: event timestamp must be within 48h of article publish date
+■Asset validation: all tickers must exist in the assets table
+Layer 2 — Human Review Queue (events in the 0.55–0.72 confidence band):
+■Build a simple internal annotation UI — 10 minutes of engineering, not a full product
+■Reviewer sees: article headline, extracted event, entity list, suggested impact
+■Actions: Approve / Reject / Edit (inline correction of event_type, assets, impact)
+■Approved corrections feed back into the training dataset automatically
+■Target: 50–100 human-reviewed events per week in early months
+Layer 3 — Outcome Verification (runs T+24h and T+7d after each event):
+outcome_verifier.py (Celery task)
+@app.task
+def verify_event_outcome(event_id: str, horizon: str):
+event = Event.get(event_id)
+impacts = EventImpact.filter(event_id=event_id)
+for impact in impacts:
+price_at_event = get_price(impact.asset_id, event.published_at)
+price_at_horizon = get_price(impact.asset_id,
+event.published_at + timedelta(hours=parse(horizon)))
+actual_change = (price_at_horizon - price_at_event) / price_at_event
+# Update the record with ground truth
+impact.update(
+actual_change_pct=actual_change,
+verified_at=datetime.utcnow()
+)
+
+--- Page 15 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 15
+Key Quality Metrics Dashboard
+These metrics should appear in the internal Grafana dashboard from day one:
+Metric
+Target
+Alert Threshold
+Event classification accuracy
+> 85%
+< 75% → page on-call
+NLP pipeline latency (p95)
+< 30s
+> 60s → alert
+Events auto-approved rate
+> 70%
+< 50% → model retraining needed
+Human review queue backlog
+< 100
+> 500 → increase reviewer bandwidth
+Prediction accuracy (24h)
+> 58%
+< 50% → disable prediction feature
+Asset mapping coverage
+> 90%
+< 80% → expand knowledge graph
+News ingestion freshness
+< 10 min lag
+> 30min → check API health
+
+--- Page 16 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 16
+SECTION 08
+Revised Development Timeline
+A realistic 6-month roadmap incorporating all improvements
+The original documents propose a 4-month timeline. Incorporating the production-grade improvements
+above, a realistic timeline is 6 months to a quality MVP — one that can be shown to investors and early
+users without embarrassing prediction errors or pipeline failures.
+Month 1
+Foundation
+ Modular monolith setup (FastAPI + PostgreSQL + Redis + Celery)
+ News ingestion from 5 sources with deduplication
+ Raw article storage + Kafka pipeline skeleton
+ Knowledge graph schema seeded from Wikidata + SEC EDGAR
+ Basic Next.js frontend — news feed only
+Month 2
+NLP Core
+ Relevance classifier (DistilBERT) — geo/macro filter
+ NER fine-tuning on GDELT-paired text
+ Event type classifier (RoBERTa) — 7 categories
+ Confidence gating + human review queue
+ Internal annotation UI for review queue
+Month 3
+Intelligence Layer
+ FinBERT sentiment integration
+ 4-layer asset mapping system (direct → supply chain → sector → ML)
+ event_impacts table population from NLP output
+ Market Data Service with WebSocket multiplexing
+ Event feed + market panel UI
+Month 4
+Prediction Engine
+ Historical training dataset construction (GDELT + Polygon historical)
+ ShortPulse model (1–6h) + TrendForce model (24h–7d)
+ Prediction tracking + outcome verification pipeline
+
+--- Page 17 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 17
+ Prediction UI with accuracy transparency display
+ Data quality metrics dashboard (Grafana)
+Month 5
+Platform Features
+ Pinterest-style boards + pins
+ Personalized alerts (email + push)
+ Global map visualization
+ User watchlists
+ Pro tier paywall (Stripe integration)
+Month 6
+Hardening & Mobile
+ React Native mobile app (iOS + Android)
+ Performance testing + load testing (k6)
+ NLP service extraction from monolith (if CPU threshold hit)
+ Security audit + penetration testing
+ Public beta launch
+
+--- Page 18 ---
+GEOATLAS  ·  PRODUCTION-GRADE IMPROVEMENT REPORT
+CONFIDENTIAL
+GeoAtlas Engineering Review  —  March 2026
+Page 18
+SECTION 09
+Production Risk Matrix
+Consolidated risks with mitigations across all six areas
+Risk
+Probabilit
+y
+Impact
+Mitigation
+Owner
+NLP classifier ships
+with < 75% accuracy
+HIGH
+CRITICA
+L
+Confidence gating; human review queue;
+don't launch without 85%+ on test set
+ML Lead
+No training data for
+prediction models
+CERTAIN
+CRITICA
+L
+GDELT + Polygon historical API pipeline
+must start in Month 1 as parallel
+workstream
+Data
+Lead
+Asset mapping misses
+supply chain events
+HIGH
+HIGH
+Knowledge graph from Wikidata/SEC;
+4-layer fallback system
+Backend
+Lead
+Microservice overhead
+delays MVP
+HIGH
+HIGH
+Modular monolith first; split only when
+resource profiles diverge
+Architect
+Market data API costs
+exceed budget
+MEDIUM
+HIGH
+WebSocket multiplexing; Redis cache with
+TTL policy; budget $756/mo from start
+Infra
+Lead
+Prediction accuracy
+falls below 50%
+MEDIUM
+CRITICA
+L
+Track all predictions vs. outcomes;
+auto-disable feature if accuracy < 50%
+ML Lead
+Data quality degrades
+silently
+HIGH
+HIGH
+Automated quality gates + Grafana metrics
+dashboard from Month 1
+Data
+Lead
+News source bias
+distorts event
+classification
+MEDIUM
+MEDIUM
+5+ news sources; source diversity score
+per event; flag single-source events
+Data
+Lead
+Final Strategic Note
+The GeoAtlas concept is compelling and the architecture direction is broadly correct. The six areas
+addressed in this report are not reasons to abandon the project — they are reasons to plan more carefully
+before building. The most important immediate actions are: (1) begin the historical training data pipeline in
+parallel with the main build from day one, (2) commit to the modular monolith pattern until at least Month 4,
+and (3) instrument quality metrics before shipping any NLP output to users. A product that does fewer
+things accurately is worth more than one that does many things unreliably.
+ GeoAtlas Production Improvement Report · March 2026 · Confidential

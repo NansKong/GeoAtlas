@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  .maplibregl-popup-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+  .maplibregl-popup-tip {
+    display: none !important;
+  }
+  :root {
+    --bg: #f0f0f0;
+    --surface: #ffffff;
+    --text: #111111;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --pin-radius: 1.25rem;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* ─── Pinterest-style pin card ─────────────────────────────────────────── */
+  .pin-card {
+    @apply bg-white rounded-[var(--pin-radius)] overflow-hidden cursor-pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .pin-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+
+  /* ─── Masonry grid ──────────────────────────────────────────────────────── */
+  .masonry-grid {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .masonry-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+  }
+
+  /* ─── Impact badges ─────────────────────────────────────────────────────── */
+  .badge-positive {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold;
+    background: #d1fae5; color: #065f46;
+  }
+
+  .badge-negative {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold;
+    background: #fee2e2; color: #991b1b;
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold;
+    background: #f3f4f6; color: #374151;
+  }
+
+  /* ─── Event type badge ──────────────────────────────────────────────────── */
+  .event-type-badge {
+    @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium;
+    background: #dbe4ff; color: #182faa;
+  }
+
+  /* ─── Skeleton shimmer ──────────────────────────────────────────────────── */
+  .skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 37%, #f0f0f0 63%);
+    background-size: 800px 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  /* ─── Navbar ────────────────────────────────────────────────────────────── */
+  .navbar {
+    @apply fixed top-0 left-0 right-0 z-50 bg-white;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+    height: 60px;
+  }
+}
