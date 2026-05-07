@@ -108,7 +108,6 @@ GeoAtlas/
 │   ├── src/app/              # Pages and Routing
 │   └── src/components/       # UI Components (Cards, Maps, Charts)
 ├── ops/                      # Docker, Grafana, Prometheus configs
-├── PRD/                      # Product Requirements and Architecture Docs
 └── README.md                 # Project Documentation
 ```
 
