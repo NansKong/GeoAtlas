@@ -528,11 +528,13 @@ async def run_snapshot_loop():
     logger.info("Market snapshot worker started")
     print("[SNAPSHOT WORKER] Started and entering loop!")
 
-    # Instant DB Warmup Pass
+    # Instant DB Warmup Pass + Yahoo Gap Fill
     try:
         async with AsyncSessionFactory() as db:
             assets = await _get_cached_assets()
+            ticker_asset_type = {a.ticker.upper(): a.asset_type for a in assets}
             warmup_snap = []
+            missing = []
             for a in assets:
                 q = await _quote_from_db(db, a.id)
                 if q and q.get("price"):
@@ -543,6 +545,24 @@ async def run_snapshot_loop():
                         "asset_type": a.asset_type.value,
                         **q,
                     })
+                else:
+                    missing.append(a)
+
+            if missing:
+                missing_tickers = [a.ticker for a in missing]
+                y_quotes = await fetch_yahoo_per_ticker(missing_tickers, ticker_asset_type)
+                y_data = y_quotes.get("data", {})
+                for a in missing:
+                    q = y_data.get(a.ticker)
+                    if q and q.get("price"):
+                        warmup_snap.append({
+                            "id": str(a.id),
+                            "ticker": a.ticker,
+                            "name": a.name or a.ticker,
+                            "asset_type": a.asset_type.value,
+                            **q,
+                        })
+
             if warmup_snap:
                 await set_market_snapshot({
                     "snapshot": warmup_snap,
