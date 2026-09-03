@@ -83,19 +83,15 @@ async def prediction_quota_state(plan_key: str) -> tuple[int, int]:
 
 async def consume_prediction_quota(plan_key: str, amount: int) -> tuple[int, int]:
     redis = get_redis()
-    ttl = await redis.ttl(plan_key)
-    if ttl <= 0:
+    # INCRBY is atomic in Redis — always safe to call without a prior check.
+    # We set the TTL only if the key is freshly created (used == amount),
+    # avoiding a TOCTOU race between the TTL read and the pipeline execution.
+    used = int(await redis.incrby(plan_key, amount) or 0)
+    if used == amount:
+        # Key was just created; set it to expire at midnight UTC.
         now = datetime.now(timezone.utc)
-        tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow = tomorrow.replace(day=now.day)  # no-op, keeps local intent explicit
         seconds_until_reset = 86400 - (now.hour * 3600 + now.minute * 60 + now.second)
-        pipe = redis.pipeline()
-        pipe.incrby(plan_key, amount)
-        pipe.expire(plan_key, seconds_until_reset)
-        values = await pipe.execute()
-        used = int(values[0] or 0)
-    else:
-        used = int(await redis.incrby(plan_key, amount) or 0)
+        await redis.expire(plan_key, max(1, seconds_until_reset))
     return used, max(0, FREE_PREDICTIONS_PER_DAY - used)
 
 

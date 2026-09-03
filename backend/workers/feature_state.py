@@ -4,6 +4,7 @@ import uuid
 import redis
 from datetime import datetime, timezone, timedelta
 import numpy as np
+import pandas as pd
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session

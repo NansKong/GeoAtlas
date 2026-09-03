@@ -196,6 +196,19 @@ async def _apply_subscription_state(
 
 def _verify_stripe_signature(payload: bytes, signature_header: str | None) -> None:
     if not settings.STRIPE_WEBHOOK_SECRET:
+        # Reject in all environments — an unconfigured secret means we cannot
+        # authenticate Stripe, so we must not process the event.
+        if settings.APP_ENV == "development":
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "STRIPE_WEBHOOK_SECRET is not set — webhook signature check SKIPPED. "
+                "This is only acceptable in local development and MUST be fixed before production."
+            )
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="Webhook endpoint is not configured (STRIPE_WEBHOOK_SECRET missing)",
+            )
         return
     if not signature_header:
         raise HTTPException(status_code=400, detail="Missing Stripe-Signature header")

@@ -298,6 +298,8 @@ PROVIDERS: Dict[str, ProviderContext] = {
     "fcs":          ProviderContext("fcs",          concurrency=5),
     "eodhd":        ProviderContext("eodhd",        concurrency=10),
     "alphavantage": ProviderContext("alphavantage", concurrency=2),
+    "alpaca":       ProviderContext("alpaca",       concurrency=10),
+    "yahoo":        ProviderContext("yahoo",        concurrency=10),
 }
 
 
@@ -413,10 +415,23 @@ class DBBuffer:
             await self._do_flush(batch)
 
     async def _do_flush(self, batch: list[dict]) -> None:
-        try:
-            await self._flush_fn(batch)
-        except Exception as exc:
-            logger.error("DBBuffer flush error (%d records): %s", len(batch), exc)
+        for attempt in range(3):
+            try:
+                await self._flush_fn(batch)
+                return
+            except Exception as exc:
+                if attempt < 2:
+                    wait = 0.5 * (attempt + 1)
+                    logger.warning(
+                        "DBBuffer flush retry %d/%d (%d records): %s — retrying in %.1fs",
+                        attempt + 1, 2, len(batch), exc, wait,
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    logger.error(
+                        "DBBuffer flush PERMANENT DROP (%d records after 3 attempts): %s",
+                        len(batch), exc,
+                    )
 
     @property
     def size(self) -> int:

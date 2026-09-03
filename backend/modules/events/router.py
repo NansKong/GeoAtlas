@@ -36,7 +36,7 @@ from modules.events.schemas import (
     WeeklyReviewProgressOut,
 )
 from modules.market.models import Asset
-from modules.users.models import User
+from modules.users.models import User, UserRole
 from modules.users.router import get_current_user
 
 router = APIRouter(prefix="/events", tags=["Events"])
@@ -213,6 +213,12 @@ def _parse_event_status(token: str) -> EventStatus:
     except KeyError as exc:
         valid = ", ".join(s.value for s in EventStatus)
         raise HTTPException(status_code=422, detail=f"Invalid status '{token}'. Use one of: {valid}") from exc
+
+
+def _require_admin(user: User) -> None:
+    """Raise 403 if the user is not an admin. Used to guard human-review endpoints."""
+    if not user or getattr(user.role, "value", None) != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403, detail="Admin access required")
 
 
 def _parse_event_type(token: str) -> EventType:
@@ -901,7 +907,7 @@ async def edit_pending_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
+    _require_admin(current_user)
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if not event:
@@ -931,7 +937,7 @@ async def approve_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
+    _require_admin(current_user)
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if not event:
@@ -972,7 +978,7 @@ async def reject_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _ = current_user
+    _require_admin(current_user)
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if not event:
@@ -1108,7 +1114,11 @@ async def list_news(
                     NewsArticle.url.ilike(like_term),
                 )
             )
-    result = await db.execute(query)
+    # Apply a DB-level fetch cap before Python-level category filtering to avoid OOM.
+    # category is a runtime-derived label (not a DB column) so we over-fetch by a
+    # fixed factor and then filter and paginate in Python.
+    MAX_FETCH = max(limit * 20, 1000)
+    result = await db.execute(query.limit(MAX_FETCH))
     articles = result.scalars().all()
     items = [_to_news_article_out(article) for article in articles]
     if category:

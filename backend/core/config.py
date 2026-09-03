@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     BINANCE_API_SECRET: str = ""
     MARKET_REQUIRE_LIVE_API: bool = True
 
+    # Alpaca Market Data API (free Basic plan = IEX real-time + historical)
+    ALPACA_API_KEY_ID: str = ""
+    ALPACA_API_SECRET_KEY: str = ""
+
     # Elasticsearch
     ELASTICSEARCH_URL: str = "http://localhost:9200"
 

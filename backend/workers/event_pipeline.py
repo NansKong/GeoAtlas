@@ -27,9 +27,14 @@ from modules.events.models import (
     ImpactDirection,
     NewsArticle,
 )
-from modules.market.models import Asset
+from modules.market.models import Asset, AssetType
 from workers.celery_app import celery_app
-from workers.entity_utils import build_asset_alias_map, extract_asset_mentions, extract_entity_tags
+from workers.entity_utils import (
+    GENERIC_SINGLE_TOKEN_ALIASES,
+    build_asset_alias_map,
+    extract_asset_mentions,
+    extract_entity_tags,
+)
 from workers.kg_utils import build_asset_graph, expand_related_assets
 from workers.model_runtime import predict_event_type
 from workers.nlp_utils import (
@@ -733,6 +738,42 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                 continue
 
             mentioned_tickers = extract_asset_mentions(text, asset_tickers, asset_alias_map)
+
+            # Dynamic News Cashtag Auto-Discovery ($TICKER mentions in news)
+            cashtag_candidates = set(re.findall(r"\$([A-Z]{1,5})\b", text))
+            for ctag in cashtag_candidates:
+                if ctag in asset_tickers or ctag.lower() in GENERIC_SINGLE_TOKEN_ALIASES:
+                    continue
+                try:
+                    discovered = session.execute(
+                        select(Asset).where(Asset.ticker == ctag)
+                    ).scalar_one_or_none()
+                    if discovered is None:
+                        # Flush the batch's pending work first so it lands *before* the
+                        # SAVEPOINT: a failed asset insert (e.g. the same ticker inserted
+                        # concurrently by another worker) must not discard the events
+                        # already built for earlier articles in this batch.
+                        session.flush()
+                        with session.begin_nested():
+                            discovered = Asset(
+                                ticker=ctag,
+                                name=f"{ctag} Inc",
+                                asset_type=AssetType.STOCK,
+                                sector="General",
+                                industry="Equities",
+                                country="United States",
+                                exchange="US",
+                                currency="USD",
+                            )
+                            session.add(discovered)
+                            session.flush()
+                        logger.info("[NEWS DISCOVERY] Dynamically auto-registered news stock: %s", ctag)
+                    asset_lookup[ctag] = discovered
+                    asset_tickers.add(ctag)
+                    if ctag not in mentioned_tickers:
+                        mentioned_tickers.append(ctag)
+                except Exception as exc:
+                    logger.warning("[NEWS DISCOVERY] Failed to register news cashtag %s: %s", ctag, exc)
             confidence = _composite_confidence(
                 base_confidence=base_confidence,
                 source=article.source,

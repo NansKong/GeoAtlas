@@ -12,7 +12,7 @@ from typing import Any, Optional
 import httpx
 from fastapi import HTTPException, WebSocket
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -75,12 +75,292 @@ async def _cache_set_json(key: str, payload: dict, ttl_seconds: int) -> None:
     await redis_set(key, json.dumps(payload), ttl_seconds=ttl_seconds)
 
 
+NAME_ALIAS_MAP: dict[str, str] = {
+    "AMAZON": "AMZN",
+    "APPLE": "AAPL",
+    "MICROSOFT": "MSFT",
+    "GOOGLE": "GOOGL",
+    "ALPHABET": "GOOGL",
+    "TESLA": "TSLA",
+    "NVIDIA": "NVDA",
+    "SILVER": "SLV",
+    "GOLD": "GLD",
+    "OIL": "USO",
+    "CRUDE OIL": "USO",
+    "NATURAL GAS": "UNG",
+    "GAS": "UNG",
+    "BITCOIN": "BTC",
+    "ETHEREUM": "ETH",
+    "SOLANA": "SOL",
+    "DISNEY": "DIS",
+    "NETFLIX": "NFLX",
+    "PALANTIR": "PLTR",
+    "AMD": "AMD",
+    "COINBASE": "COIN",
+    "META": "META",
+    "FACEBOOK": "META",
+}
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE/ILIKE wildcards so user input cannot widen the pattern."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+# ─── Yahoo Finance symbol mapping ─────────────────────────────────────────────
+# Yahoo scopes crypto/forex/futures symbols with a type suffix. A bare ticker
+# passed through unmapped resolves to the WRONG instrument — "BTC" alone is
+# Yahoo's Grayscale Bitcoin Trust ETF, not Bitcoin — so every ticker must go
+# through this layer before it reaches a Yahoo endpoint. `_strip_yahoo_suffix`
+# is the inverse, used when a Yahoo *search* hit becomes a new internal ticker.
+
+COMMODITY_FUTURES_ROOTS = {"GC", "CL", "NG", "SI", "HG"}
+
+YAHOO_QUOTE_TYPE_MAP: dict[str, AssetType] = {
+    "EQUITY": AssetType.STOCK,
+    "ETF": AssetType.ETF,
+    "CRYPTOCURRENCY": AssetType.CRYPTO,
+    "CURRENCY": AssetType.FOREX,
+    "FUTURE": AssetType.COMMODITY,
+    "INDEX": AssetType.INDEX,
+}
+
+
+def _yahoo_symbol(ticker: str, asset_type: AssetType) -> str:
+    """Map an internal ticker to the symbol Yahoo Finance expects."""
+    t = ticker.upper()
+    if asset_type == AssetType.CRYPTO:
+        return t if t.endswith("-USD") else f"{t}-USD"
+    if asset_type == AssetType.FOREX:
+        return t if t.endswith("=X") else f"{t}=X"
+    if asset_type == AssetType.COMMODITY:
+        if t.endswith("=F") or t.endswith("=X"):
+            return t
+        if t in COMMODITY_FUTURES_ROOTS:
+            return f"{t}=F"
+        return t
+    return t
+
+
+def _strip_yahoo_suffix(symbol: str, asset_type: AssetType) -> str:
+    """Inverse of `_yahoo_symbol`: turn a symbol Yahoo returned back into our
+    internal bare-ticker convention (e.g. "BTC-USD" -> "BTC", "EURUSD=X" -> "EURUSD")."""
+    s = symbol.upper()
+    if asset_type == AssetType.CRYPTO and s.endswith("-USD"):
+        return s[: -len("-USD")]
+    if asset_type == AssetType.FOREX and s.endswith("=X"):
+        return s[: -len("=X")]
+    if asset_type == AssetType.COMMODITY and s.endswith("=F"):
+        return s[: -len("=F")]
+    return s
+
+
+async def _yahoo_search(query: str) -> Optional[dict]:
+    """Resolve free text (a company name, or an unfamiliar symbol) to a Yahoo
+    Finance instrument. Free, no API key. Returns the top match's symbol/name/
+    type/exchange, or None — Yahoo returns an empty list for garbage input
+    rather than guessing, so a miss here is a real miss."""
+    ctx = PROVIDERS["yahoo"]
+    try:
+        response = await ctx.execute(
+            global_http_client.get,
+            "https://query1.finance.yahoo.com/v1/finance/search",
+            params={"q": query, "quotesCount": 1, "newsCount": 0},
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if response is None or response.status_code != 200:
+            return None
+        quotes = response.json().get("quotes") or []
+        if not quotes:
+            return None
+        top = quotes[0]
+        symbol = top.get("symbol")
+        if not symbol:
+            return None
+        return {
+            "symbol": symbol,
+            "name": top.get("shortname") or top.get("longname"),
+            "quote_type": (top.get("quoteType") or "").upper(),
+            "exchange": top.get("exchange"),
+        }
+    except Exception as exc:
+        logger.debug("Yahoo search failed for '%s': %s", query, exc)
+        return None
+
+
 async def _get_asset_or_404(db: AsyncSession, ticker: str) -> Asset:
-    result = await db.execute(select(Asset).where(Asset.ticker == ticker.upper()))
-    asset = result.scalar_one_or_none()
-    if not asset:
-        raise HTTPException(status_code=404, detail=f"Asset '{ticker}' not found")
-    return asset
+    clean_query = ticker.strip()
+    ticker_upper = clean_query.upper()
+
+    # 0. Common name alias lookup (e.g. "amazon" -> "AMZN", "silver" -> "SLV")
+    if ticker_upper in NAME_ALIAS_MAP:
+        ticker_upper = NAME_ALIAS_MAP[ticker_upper]
+
+    # 1a. Exact ticker match wins outright. A fuzzy name match must never shadow a
+    #     real symbol: "%C%" matches "Apple Inc", "%V%" matches "NVIDIA Corp", etc.,
+    #     so an OR-query would happily return the wrong company for Citigroup or Visa.
+    result = await db.execute(select(Asset).where(Asset.ticker == ticker_upper))
+    asset = result.scalars().first()
+    if asset:
+        return asset
+
+    # 1b. Otherwise fall back to a company-name search. Require >= 3 characters so a
+    #     short unknown ticker cannot match an unrelated name, escape LIKE wildcards
+    #     from user input, and order deterministically (tightest name first).
+    if len(clean_query) >= 3:
+        name_pattern = "%" + _escape_like(clean_query) + "%"
+        result = await db.execute(
+            select(Asset)
+            .where(Asset.name.ilike(name_pattern, escape="\\"))
+            .order_by(func.length(Asset.name).asc(), Asset.ticker.asc())
+            .limit(1)
+        )
+        asset = result.scalars().first()
+        if asset:
+            return asset
+
+    # 2. Polygon Search Reference API if API key present
+    if settings.POLYGON_API_KEY:
+        try:
+            ctx = PROVIDERS["polygon"]
+            resp = await ctx.execute(
+                global_http_client.get,
+                "https://api.polygon.io/v3/reference/tickers",
+                params={"search": clean_query, "active": "true", "limit": 1, "apiKey": settings.POLYGON_API_KEY},
+            )
+            if resp and resp.status_code == 200:
+                results = resp.json().get("results", [])
+                if results and results[0].get("ticker"):
+                    found_ticker = results[0]["ticker"].upper()
+                    result = await db.execute(select(Asset).where(Asset.ticker == found_ticker))
+                    existing = result.scalar_one_or_none()
+                    if existing:
+                        return existing
+                    ticker_upper = found_ticker
+        except Exception as exc:
+            logger.debug("Polygon search failed for '%s': %s", clean_query, exc)
+
+    # Dynamic asset auto-discovery
+    logger.info("Asset '%s' not in DB — initiating dynamic discovery...", ticker_upper)
+    name = f"{ticker_upper}"
+    asset_type = AssetType.STOCK
+    sector = "General"
+    industry = "Equities"
+    exchange = "US"
+    currency = "USD"
+    country = "United States"
+
+    # 1. Try fetching official ticker metadata from Polygon if API key available
+    if settings.POLYGON_API_KEY:
+        try:
+            ctx = PROVIDERS["polygon"]
+            resp = await ctx.execute(
+                global_http_client.get,
+                f"https://api.polygon.io/v3/reference/tickers/{ticker_upper}",
+                params={"apiKey": settings.POLYGON_API_KEY},
+            )
+            if resp and resp.status_code == 200:
+                pdata = resp.json().get("results", {})
+                if pdata:
+                    name = pdata.get("name") or name
+                    market = (pdata.get("market") or "").lower()
+                    type_str = (pdata.get("type") or "").upper()
+                    if market == "crypto" or "CRYPTO" in type_str:
+                        asset_type = AssetType.CRYPTO
+                    elif market == "fx" or "FX" in type_str:
+                        asset_type = AssetType.FOREX
+                    elif "ETF" in type_str:
+                        asset_type = AssetType.ETF
+                    elif market == "indices" or "INDEX" in type_str:
+                        asset_type = AssetType.INDEX
+                    exchange = pdata.get("primary_exchange") or exchange
+                    currency = (pdata.get("currency_name") or currency).upper()
+                    locale = pdata.get("locale") or ""
+                    country = "Global" if locale == "global" else "United States"
+        except Exception as exc:
+            logger.debug("Polygon ticker metadata lookup skipped for %s: %s", ticker_upper, exc)
+
+    # 2. Yahoo Finance search — free, no API key. Gap-fills when Polygon has no
+    #    key configured or found nothing, and classifies the instrument directly
+    #    from Yahoo's quoteType instead of guessing from ticker shape like the
+    #    pattern-matching fallback below.
+    if name == ticker_upper:
+        yahoo_hit = await _yahoo_search(clean_query)
+        if yahoo_hit:
+            hit_type = YAHOO_QUOTE_TYPE_MAP.get(yahoo_hit["quote_type"])
+            if hit_type is not None:
+                found_ticker = _strip_yahoo_suffix(yahoo_hit["symbol"], hit_type)
+                result = await db.execute(select(Asset).where(Asset.ticker == found_ticker))
+                existing = result.scalar_one_or_none()
+                if existing:
+                    return existing
+                ticker_upper = found_ticker
+                name = yahoo_hit.get("name") or name
+                asset_type = hit_type
+                exchange = yahoo_hit.get("exchange") or exchange
+                if asset_type == AssetType.CRYPTO:
+                    sector, industry, country = "Crypto", "Layer 1", "Global"
+                elif asset_type == AssetType.COMMODITY:
+                    sector, industry, country = "Commodities", "Futures", "Global"
+                elif asset_type == AssetType.FOREX:
+                    sector, industry, country = "FX", "Major Pair", "Global"
+
+    # 3. Pattern-based fallback inference
+    if name == ticker_upper:
+        known_cryptos = {
+            "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "DOT", "LINK",
+            "AVAX", "MATIC", "SHIB", "LTC", "UNI", "PEPE", "NEAR", "APT", "SUI",
+            "RENDER", "FET", "INJ", "TIA", "RUNE", "TAO", "WIF", "AR", "FLOKI"
+        }
+        if ticker_upper in known_cryptos or ticker_upper.endswith("USDT"):
+            asset_type = AssetType.CRYPTO
+            name = f"{ticker_upper} Crypto"
+            exchange = "CRYPTO"
+            sector = "Crypto"
+            industry = "Layer 1"
+            country = "Global"
+        elif ticker_upper.endswith("=F") or ticker_upper in {"GC", "CL", "NG", "SI", "HG", "XAUUSD", "XAGUSD"}:
+            asset_type = AssetType.COMMODITY
+            name = f"{ticker_upper} Commodity"
+            exchange = "NYMEX"
+            sector = "Commodities"
+            industry = "Futures"
+            country = "Global"
+        elif len(ticker_upper) == 6 and ticker_upper in {"EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "USDCNH", "USDINR"}:
+            asset_type = AssetType.FOREX
+            name = f"{ticker_upper[:3]}/{ticker_upper[3:]} Currency Pair"
+            exchange = "OTC"
+            sector = "FX"
+            industry = "Major Pair"
+            country = "Global"
+        else:
+            name = f"{ticker_upper} Inc"
+
+    try:
+        new_asset = Asset(
+            ticker=ticker_upper,
+            name=name,
+            asset_type=asset_type,
+            sector=sector,
+            industry=industry,
+            country=country,
+            exchange=exchange,
+            currency=currency,
+        )
+        db.add(new_asset)
+        await db.commit()
+        await db.refresh(new_asset)
+        logger.info("Dynamically registered new asset in DB: %s (%s, %s)", ticker_upper, name, asset_type.value)
+        return new_asset
+    except Exception as exc:
+        await db.rollback()
+        logger.warning("Failed to auto-register asset %s: %s", ticker_upper, exc)
+        # Final safety check if another worker registered it concurrently
+        result = await db.execute(select(Asset).where(Asset.ticker == ticker_upper))
+        existing = result.scalar_one_or_none()
+        if existing:
+            return existing
+        raise HTTPException(status_code=404, detail=f"Asset '{ticker_upper}' could not be registered")
 
 
 async def _quote_from_polygon(ticker: str) -> Optional[dict]:
@@ -261,6 +541,10 @@ async def _quote_from_alpha_vantage(ticker: str) -> Optional[dict]:
         price = quote.get("05. price")
         if price is None:
             return None
+        # Detect rate-limit note returned as 200 JSON (AV free tier)
+        if "Note" in payload or "Information" in payload:
+            logger.warning("AlphaVantage rate limit hit for %s", ticker)
+            return None
         return {
             "price": float(price),
             "as_of": datetime.now(timezone.utc),
@@ -269,6 +553,75 @@ async def _quote_from_alpha_vantage(ticker: str) -> Optional[dict]:
     except Exception as exc:
         logger.warning("AlphaVantage quote failed for %s: %s", ticker, exc)
         return None
+
+
+async def _quote_from_alpaca(ticker: str) -> Optional[dict]:
+    """Alpaca Market Data API — free Basic plan gives IEX real-time quotes for US equities."""
+    if not getattr(settings, "ALPACA_API_KEY_ID", None) or not getattr(settings, "ALPACA_API_SECRET_KEY", None):
+        return None
+    ctx = PROVIDERS["alpaca"]
+    try:
+        response = await ctx.execute(
+            global_http_client.get,
+            f"https://data.alpaca.markets/v2/stocks/{ticker}/quotes/latest",
+            headers={
+                "APCA-API-KEY-ID": settings.ALPACA_API_KEY_ID,
+                "APCA-API-SECRET-KEY": settings.ALPACA_API_SECRET_KEY,
+            },
+        )
+        if response is None or response.status_code != 200:
+            return None
+        payload = response.json()
+        quote = payload.get("quote", {})
+        # Use the mid of the ask/bid as a proxy for the latest trade price. Outside IEX
+        # trading hours (and for symbols IEX does not quote) Alpaca returns ap/bp of 0
+        # rather than null — treating those as a real price would publish and persist a
+        # $0.00 quote, so only positive sides count.
+        ask = _safe_float(quote.get("ap"))  # ask price
+        bid = _safe_float(quote.get("bp"))  # bid price
+        sides = [side for side in (ask, bid) if side is not None and side > 0]
+        if not sides:
+            return None
+        price = sum(sides) / len(sides)
+        return {
+            "price": price,
+            "as_of": datetime.now(timezone.utc),
+            "source": "alpaca",
+        }
+    except Exception as exc:
+        logger.warning("Alpaca quote failed for %s: %s", ticker, exc)
+        return None
+
+
+async def _quote_from_yahoo(ticker: str, asset_type: AssetType) -> Optional[dict]:
+    """Yahoo Finance chart endpoint — free, no API key, covers all asset types in
+    one call. Gap-fill + final fallback: tried only once every keyed provider
+    above has failed or is unconfigured."""
+    symbol = _yahoo_symbol(ticker, asset_type)
+    ctx = PROVIDERS["yahoo"]
+    try:
+        response = await ctx.execute(
+            global_http_client.get,
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+            params={"range": "1d", "interval": "1d"},
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if response is None or response.status_code != 200:
+            return None
+        results = response.json().get("chart", {}).get("result") or []
+        if not results:
+            return None
+        meta = results[0].get("meta") or {}
+        price = meta.get("regularMarketPrice")
+        if price is None:
+            return None
+        as_of_ts = meta.get("regularMarketTime")
+        as_of = datetime.fromtimestamp(as_of_ts, tz=timezone.utc) if as_of_ts else datetime.now(timezone.utc)
+        return {"price": float(price), "as_of": as_of, "source": "yahoo"}
+    except Exception as exc:
+        logger.warning("Yahoo quote failed for %s (%s): %s", ticker, symbol, exc)
+        return None
+
 
 async def _quote_from_db(db: AsyncSession, asset_id) -> Optional[dict]:
     result = await db.execute(
@@ -791,28 +1144,43 @@ async def get_quote(db: AsyncSession, ticker: str, refresh: bool = False) -> Quo
             )
 
     asset = await _get_asset_or_404(db, ticker_upper)
+    ticker_to_fetch = asset.ticker
     quote: Optional[dict] = None
 
     if asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.INDEX}:
-        quote = await _quote_from_polygon(ticker_upper)
+        quote = await _quote_from_polygon(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_eodhd(ticker_upper)
+            quote = await _quote_from_eodhd(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_alpha_vantage(ticker_upper)
+            quote = await _quote_from_finnhub(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_finnhub(ticker_upper)
+            quote = await _quote_from_alpaca(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_twelve_data(ticker_upper, asset.asset_type)
+            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
+        if quote is None:
+            quote = await _quote_from_alpha_vantage(ticker_to_fetch)  # last: 25 req/day free limit
+        if quote is None:
+            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
     elif asset.asset_type == AssetType.FOREX:
-        quote = await _quote_from_fcsapi(ticker_upper)
+        quote = await _quote_from_fcsapi(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_twelve_data(ticker_upper, asset.asset_type)
+            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
+        if quote is None:
+            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
     elif asset.asset_type == AssetType.CRYPTO:
-        quote = await _quote_from_binance(ticker_upper)
+        quote = await _quote_from_binance(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_twelve_data(ticker_upper, asset.asset_type)
+            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
+        if quote is None:
+            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
     elif asset.asset_type == AssetType.COMMODITY:
-        quote = await _quote_from_twelve_data(ticker_upper, asset.asset_type)
+        quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
+        if quote is None:
+            quote = await _quote_from_polygon(ticker_to_fetch)
+        if quote is None:
+            quote = await _quote_from_finnhub(ticker_to_fetch)
+        if quote is None:
+            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
 
     if quote is not None:
         await _persist_quote(db, asset.id, quote)
@@ -820,14 +1188,14 @@ async def get_quote(db: AsyncSession, ticker: str, refresh: bool = False) -> Quo
     if quote is None and _require_live_api():
         raise HTTPException(
             status_code=503,
-            detail=f"Live quote provider unavailable for '{ticker_upper}'",
+            detail=f"Live quote provider unavailable for '{ticker_to_fetch}'",
         )
 
     if quote is None:
         quote = await _quote_from_db(db, asset.id)
 
     if quote is None:
-        raise HTTPException(status_code=404, detail=f"No quote data available for '{ticker_upper}'")
+        raise HTTPException(status_code=404, detail=f"No quote data available for '{ticker_to_fetch}'")
 
     cache_payload = {
         "price": quote["price"],
@@ -838,7 +1206,7 @@ async def get_quote(db: AsyncSession, ticker: str, refresh: bool = False) -> Quo
     await _cache_set_json(key, cache_payload, ttl_seconds=REALTIME_PRICE_TTL_SECONDS)
 
     return QuoteOut(
-        ticker=ticker_upper,
+        ticker=ticker_to_fetch,
         price=float(quote["price"]),
         currency=asset.currency,
         as_of=quote["as_of"],
@@ -935,6 +1303,10 @@ async def _ohlcv_from_alpha_vantage(ticker: str, limit: int) -> Optional[list[OH
         if response is None or response.status_code != 200:
             return None
         payload = response.json()
+        # Detect rate-limit message returned as 200 JSON (AV free tier 25 req/day)
+        if "Note" in payload or "Information" in payload:
+            logger.warning("AlphaVantage OHLCV rate limit hit for %s", ticker)
+            return None
         time_series = payload.get("Time Series (Daily)", {})
         if not time_series:
             return None
@@ -954,6 +1326,114 @@ async def _ohlcv_from_alpha_vantage(ticker: str, limit: int) -> Optional[list[OH
     except Exception as exc:
         logger.warning("AlphaVantage OHLCV failed for %s: %s", ticker, exc)
         return None
+
+
+async def _ohlcv_from_alpaca(ticker: str, limit: int) -> Optional[list[OHLCVPointOut]]:
+    """Alpaca Market Data API — free Basic plan: 1-year+ historical daily bars for US equities."""
+    if not getattr(settings, "ALPACA_API_KEY_ID", None) or not getattr(settings, "ALPACA_API_SECRET_KEY", None):
+        return None
+    ctx = PROVIDERS["alpaca"]
+    end_date = datetime.now(timezone.utc).date()
+    start_date = end_date - timedelta(days=max(limit * 2, 30))
+    try:
+        response = await ctx.execute(
+            global_http_client.get,
+            f"https://data.alpaca.markets/v2/stocks/{ticker}/bars",
+            params={
+                "timeframe": "1Day",
+                "start": start_date.isoformat(),
+                "end": end_date.isoformat(),
+                # Alpaca returns bars ascending from `start` and pages at `limit`, so a
+                # limit of `limit` would hand back the OLDEST bars in the window and drop
+                # the most recent weeks. Ask for the whole window (capped at Alpaca's
+                # 10000 max) and take the newest `limit` after sorting below.
+                "limit": min(max(limit * 2, 100), 10000),
+                "adjustment": "split",
+                "feed": "iex",
+            },
+            headers={
+                "APCA-API-KEY-ID": settings.ALPACA_API_KEY_ID,
+                "APCA-API-SECRET-KEY": settings.ALPACA_API_SECRET_KEY,
+            },
+        )
+        if response is None or response.status_code != 200:
+            return None
+        payload = response.json()
+        bars = payload.get("bars") or []
+        if not bars:
+            return None
+        points: list[OHLCVPointOut] = []
+        for bar in bars:
+            t_str = bar.get("t")
+            if not t_str:
+                continue
+            try:
+                ts = datetime.fromisoformat(t_str.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            points.append(
+                OHLCVPointOut(
+                    timestamp=ts,
+                    open=_safe_float(bar.get("o")),
+                    high=_safe_float(bar.get("h")),
+                    low=_safe_float(bar.get("l")),
+                    close=_safe_float(bar.get("c")),
+                    volume=_safe_float(bar.get("v")),
+                )
+            )
+        points.sort(key=lambda p: p.timestamp, reverse=True)
+        return points[:limit] if points else None
+    except Exception as exc:
+        logger.warning("Alpaca OHLCV failed for %s: %s", ticker, exc)
+        return None
+
+
+async def _ohlcv_from_yahoo(ticker: str, asset_type: AssetType, limit: int) -> Optional[list[OHLCVPointOut]]:
+    """Yahoo Finance chart endpoint — free, no API key, daily bars for any asset type.
+    Gap-fill + final fallback, mirroring `_quote_from_yahoo`'s position in the chain."""
+    symbol = _yahoo_symbol(ticker, asset_type)
+    ctx = PROVIDERS["yahoo"]
+    try:
+        response = await ctx.execute(
+            global_http_client.get,
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+            params={"range": "1y", "interval": "1d"},
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if response is None or response.status_code != 200:
+            return None
+        results = response.json().get("chart", {}).get("result") or []
+        if not results:
+            return None
+        result = results[0]
+        timestamps = result.get("timestamp") or []
+        quote = (result.get("indicators", {}).get("quote") or [{}])[0]
+        opens = quote.get("open") or []
+        highs = quote.get("high") or []
+        lows = quote.get("low") or []
+        closes = quote.get("close") or []
+        volumes = quote.get("volume") or []
+        points: list[OHLCVPointOut] = []
+        for i, ts in enumerate(timestamps):
+            close = closes[i] if i < len(closes) else None
+            if close is None:
+                continue
+            points.append(
+                OHLCVPointOut(
+                    timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
+                    open=_safe_float(opens[i]) if i < len(opens) else None,
+                    high=_safe_float(highs[i]) if i < len(highs) else None,
+                    low=_safe_float(lows[i]) if i < len(lows) else None,
+                    close=float(close),
+                    volume=_safe_float(volumes[i]) if i < len(volumes) else None,
+                )
+            )
+        points.sort(key=lambda p: p.timestamp, reverse=True)
+        return points[:limit] if points else None
+    except Exception as exc:
+        logger.warning("Yahoo OHLCV failed for %s (%s): %s", ticker, symbol, exc)
+        return None
+
 
 async def _ohlcv_from_fcsapi(ticker: str, limit: int) -> Optional[list[OHLCVPointOut]]:
     if not getattr(settings, "FCS_API_KEY", None):
@@ -1144,72 +1624,102 @@ async def get_ohlcv(
             )
 
     asset = await _get_asset_or_404(db, ticker_upper)
+    # Fetch under the RESOLVED symbol. `ticker_upper` is raw user input (it may be a
+    # company name, or a symbol that resolved to a different asset) while the points
+    # below are persisted under `asset.id`; fetching by anything else would write one
+    # instrument price history into the rows of another.
+    ticker_to_fetch = asset.ticker
     points: list[OHLCVPointOut] = []
     source = "db"
 
     if asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.INDEX}:
-        eodhd_points = await _ohlcv_from_eodhd(ticker_upper, limit=limit)
+        eodhd_points = await _ohlcv_from_eodhd(ticker_to_fetch, limit=limit)
         if eodhd_points:
             points = eodhd_points
             source = "eodhd"
         else:
-            av_points = await _ohlcv_from_alpha_vantage(ticker_upper, limit=limit)
-            if av_points:
-                points = av_points
-                source = "alphavantage"
+            alpaca_points = await _ohlcv_from_alpaca(ticker_to_fetch, limit=limit)
+            if alpaca_points:
+                points = alpaca_points
+                source = "alpaca"
             else:
-                finnhub_points = await _ohlcv_from_finnhub(ticker_upper, limit=limit)
-                if finnhub_points:
-                    points = finnhub_points
-                    source = "finnhub"
+                av_points = await _ohlcv_from_alpha_vantage(ticker_to_fetch, limit=limit)
+                if av_points:
+                    points = av_points
+                    source = "alphavantage"
                 else:
-                    twelve_points = await _ohlcv_from_twelve_data(
-                        ticker_upper,
-                        limit=limit,
-                        asset_type=asset.asset_type,
-                    )
-                    if twelve_points:
-                        points = twelve_points
-                        source = "twelve_data"
+                    finnhub_points = await _ohlcv_from_finnhub(ticker_to_fetch, limit=limit)
+                    if finnhub_points:
+                        points = finnhub_points
+                        source = "finnhub"
+                    else:
+                        twelve_points = await _ohlcv_from_twelve_data(
+                            ticker_to_fetch,
+                            limit=limit,
+                            asset_type=asset.asset_type,
+                        )
+                        if twelve_points:
+                            points = twelve_points
+                            source = "twelve_data"
+                        else:
+                            yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
+                            if yahoo_points:
+                                points = yahoo_points
+                                source = "yahoo"
     elif asset.asset_type == AssetType.FOREX:
-        fcs_points = await _ohlcv_from_fcsapi(ticker_upper, limit=limit)
+        fcs_points = await _ohlcv_from_fcsapi(ticker_to_fetch, limit=limit)
         if fcs_points:
             points = fcs_points
             source = "fcsapi"
         else:
             twelve_points = await _ohlcv_from_twelve_data(
-                ticker_upper,
+                ticker_to_fetch,
                 limit=limit,
                 asset_type=asset.asset_type,
             )
             if twelve_points:
                 points = twelve_points
                 source = "twelve_data"
+            else:
+                yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
+                if yahoo_points:
+                    points = yahoo_points
+                    source = "yahoo"
     elif asset.asset_type == AssetType.CRYPTO:
-        binance_points = await _ohlcv_from_binance(ticker_upper, limit=limit)
+        binance_points = await _ohlcv_from_binance(ticker_to_fetch, limit=limit)
         if binance_points:
             points = binance_points
             source = "binance"
         else:
             twelve_points = await _ohlcv_from_twelve_data(
-                ticker_upper,
+                ticker_to_fetch,
                 limit=limit,
                 asset_type=asset.asset_type,
             )
             if twelve_points:
                 points = twelve_points
                 source = "twelve_data"
+            else:
+                yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
+                if yahoo_points:
+                    points = yahoo_points
+                    source = "yahoo"
     elif asset.asset_type == AssetType.COMMODITY:
         twelve_points = await _ohlcv_from_twelve_data(
-            ticker_upper,
+            ticker_to_fetch,
             limit=limit,
             asset_type=asset.asset_type,
         )
         if twelve_points:
             points = twelve_points
             source = "twelve_data"
+        else:
+            yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
+            if yahoo_points:
+                points = yahoo_points
+                source = "yahoo"
 
-    if points and source in {"eodhd", "fcsapi", "finnhub", "twelve_data", "alphavantage", "binance"}:
+    if points and source in {"eodhd", "alpaca", "fcsapi", "finnhub", "twelve_data", "alphavantage", "binance", "yahoo"}:
         await _persist_ohlcv(db, asset.id, points)
 
     if not points and _require_live_api():

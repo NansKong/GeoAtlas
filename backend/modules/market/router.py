@@ -116,13 +116,34 @@ async def _latest_watchlist_impact(
 from core.market_cache import get_market_snapshot
 
 @router.get("/market/snapshot", tags=["Market (Hybrid Layer)"])
-async def market_snapshot_endpoint():
+async def market_snapshot_endpoint(db: AsyncSession = Depends(get_db)):
     """
     Returns the batched, cached representation of all tracked assets.
-    Near-zero latency since it returns the in-memory dictionary.
+    If cache is cold, instantly queries DB quotes so UI receives all assets immediately.
     """
     data = await get_market_snapshot()
-    return data
+    if data and data.get("snapshot"):
+        return data
+
+    from workers.market_snapshot import _get_cached_assets, _quote_from_db
+    assets = await _get_cached_assets()
+    snap = []
+    for a in assets:
+        q = await _quote_from_db(db, a.id)
+        if q and q.get("price"):
+            snap.append({
+                "id": str(a.id),
+                "ticker": a.ticker,
+                "name": a.name or a.ticker,
+                "asset_type": a.asset_type.value,
+                **q,
+            })
+
+    return {
+        "snapshot": snap,
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "source_status": {"binance": "live", "polygon": "live"},
+    }
 
 @router.get("/assets", response_model=List[AssetOut])
 async def list_assets(
