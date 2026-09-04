@@ -17,7 +17,8 @@ INSTITUTIONAL_PLAN = "institutional"
 VALID_PLANS = {FREE_PLAN, PRO_PLAN, INSTITUTIONAL_PLAN}
 
 FREE_BOARD_LIMIT = 3
-FREE_PREDICTIONS_PER_DAY = 5
+FREE_PREDICTIONS_PER_DAY = 250
+
 
 
 def normalize_subscription_plan(value: str | None) -> str:

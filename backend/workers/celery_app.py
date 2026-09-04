@@ -39,6 +39,7 @@ celery_app.conf.beat_schedule = {
         "task": "workers.ingestion.fetch_mediastack",
         "schedule": crontab(minute="*/10"),
     },
+    # ── Tier-1 Wire Services ─────────────────────────────────────────────────
     "fetch-reuters-rss-every-10-min": {
         "task": "workers.ingestion.fetch_rss",
         "args": ["https://feeds.reuters.com/reuters/topNews"],
@@ -49,9 +50,93 @@ celery_app.conf.beat_schedule = {
         "args": ["https://rsshub.app/apnews/topics/apf-intlnews"],
         "schedule": crontab(minute="*/10"),
     },
+    # ── Middle East / MENA ───────────────────────────────────────────────────
     "fetch-aljazeera-rss-every-10-min": {
         "task": "workers.ingestion.fetch_rss",
         "args": ["https://www.aljazeera.com/xml/rss/all.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── BBC News (World) ─────────────────────────────────────────────────────
+    "fetch-bbc-world-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://feeds.bbci.co.uk/news/world/rss.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    "fetch-bbc-top-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://feeds.bbci.co.uk/news/rss.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── New York Times ───────────────────────────────────────────────────────
+    "fetch-nyt-world-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://rss.nytimes.com/services/xml/rss/nyt/World.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    "fetch-nyt-business-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── The Guardian ─────────────────────────────────────────────────────────
+    "fetch-guardian-world-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://www.theguardian.com/world/rss"],
+        "schedule": crontab(minute="*/10"),
+    },
+    "fetch-guardian-business-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://www.theguardian.com/uk/business/rss"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── NPR (US + World) ─────────────────────────────────────────────────────
+    "fetch-npr-news-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://feeds.npr.org/1001/rss.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    "fetch-npr-world-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://feeds.npr.org/1004/rss.xml"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── Deutsche Welle (International) ──────────────────────────────────────
+    "fetch-dw-world-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://rss.dw.com/xml/rss-en-world"],
+        "schedule": crontab(minute="*/10"),
+    },
+    "fetch-dw-business-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://rss.dw.com/xml/rss-en-bus"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── France 24 ────────────────────────────────────────────────────────────
+    "fetch-france24-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://www.france24.com/en/rss"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── South China Morning Post ──────────────────────────────────────────────
+    "fetch-scmp-rss-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://www.scmp.com/rss/91/feed"],
+        "schedule": crontab(minute="*/10"),
+    },
+    # ── Google News Aggregator (Finance) ──────────────────────────────────────
+    # The generic `q=breaking+news` search feed used to live here. It is an
+    # unscoped query, so it pulled in county crime blotter and local-court items
+    # ("One Arrested in County Building Break-in", "Norfolk Police make arrest")
+    # that carry no macro or geopolitical signal. The scoped topic feeds below
+    # cover the same outlets without the noise.
+    "fetch-google-news-business-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en"],
+        "schedule": crontab(minute="*/10"),
+    },
+    "fetch-google-news-world-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en"],
         "schedule": crontab(minute="*/10"),
     },
     "process-unprocessed-articles-every-5-min": {

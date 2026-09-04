@@ -29,6 +29,11 @@ export function WatchlistPanel() {
     if (typeof window !== "undefined") {
       setIsAuthed(Boolean(localStorage.getItem("access_token")));
     }
+
+    // When the api interceptor clears an expired/invalid token, update auth state
+    const handleLogout = () => setIsAuthed(false);
+    window.addEventListener("auth:logout", handleLogout);
+    return () => window.removeEventListener("auth:logout", handleLogout);
   }, []);
 
   const watchlistQuery = useQuery({
@@ -77,7 +82,7 @@ export function WatchlistPanel() {
             createMutation.mutate({ ticker: ticker.trim() });
           }}
           disabled={!isAuthed || !ticker.trim() || createMutation.isPending}
-          className="inline-flex h-10 items-center justify-center gap-1 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+          className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Add Asset
@@ -125,9 +130,9 @@ function WatchlistRow({
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-gray-900 px-2.5 py-1 text-xs font-bold text-white">
               {item.asset.ticker}
             </span>
@@ -140,7 +145,7 @@ function WatchlistRow({
           </p>
           {latestImpact ? (
             <div className="mt-3">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${directionTone}`}>
                   {latestImpact.impact_direction}
                 </span>
@@ -161,7 +166,7 @@ function WatchlistRow({
         </div>
         <button
           onClick={() => onDelete(item.id)}
-          className="inline-flex items-center gap-1 self-start rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700"
+          className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 sm:w-auto sm:self-start"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Remove

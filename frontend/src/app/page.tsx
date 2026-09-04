@@ -135,15 +135,30 @@ export default function HomePage() {
           icon={<Sparkles className="h-4 w-4 text-geo-700" />}
           title="Structured intelligence"
           value={`${eventCount} visible events`}
-          detail="Auto-approved and human-approved events only"
+          detail={
+            appliedTopicQuery
+              ? `Filtered by "${appliedTopicQuery}"`
+              : activeType
+              ? `Filtered by ${EVENT_TYPES.find((t) => t.value === activeType)?.label ?? activeType}`
+              : "Auto-approved and human-approved events only"
+          }
+          isLoading={isEventsLoading}
         />
         <FeedStatCard
           icon={<Newspaper className="h-4 w-4 text-geo-700" />}
           title="Raw news stream"
           value={`${articleCount} categorized articles`}
-          detail="Articles stay visible even before event extraction"
+          detail={
+            appliedTopicQuery
+              ? `Filtered by "${appliedTopicQuery}"`
+              : activeNewsCategory
+              ? `Filtered by ${NEWS_CATEGORIES.find((c) => c.value === activeNewsCategory)?.label ?? activeNewsCategory}`
+              : "Articles stay visible even before event extraction"
+          }
+          isLoading={isNewsLoading}
         />
       </div>
+
 
       <MarketOverviewLayer />
       <WatchlistPanel />
@@ -163,13 +178,13 @@ export default function HomePage() {
           Predictions are only surfaced when the event type clears the current back-test threshold. Everything else stays in the history view.
         </p>
         {isPredictionsLoading ? (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="h-72 animate-pulse rounded-[26px] border border-gray-200 bg-gray-100" />
             ))}
           </div>
         ) : predictions && predictions.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             {predictions.map((prediction) => (
               <PredictionCard key={prediction.id} prediction={prediction} />
             ))}
@@ -215,7 +230,7 @@ export default function HomePage() {
         {isNewsLoading ? (
           <ArticleSkeletonGrid />
         ) : articles && articles.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             {articles.map((article) => (
               <NewsFeedCard key={article.id} article={article} />
             ))}
@@ -279,25 +294,38 @@ function FeedStatCard({
   title,
   value,
   detail,
+  isLoading = false,
 }: {
   icon: ReactNode;
   title: string;
   value: string;
   detail: string;
+  isLoading?: boolean;
 }) {
   return (
-    <div className="rounded-[28px] border border-gray-200 bg-white px-4 py-4 shadow-sm">
-      <div className="mb-3 inline-flex rounded-full bg-geo-50 p-2">{icon}</div>
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
-      <p className="mt-1 text-lg font-bold text-gray-900">{value}</p>
+    <div className="rounded-[28px] border border-gray-200 bg-white px-5 py-4 shadow-sm transition-all hover:border-gray-300 hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <div className="mb-2 inline-flex rounded-full bg-geo-50 p-2">{icon}</div>
+        <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          Live
+        </span>
+      </div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
+      {isLoading ? (
+        <div className="mt-2 h-7 w-32 animate-pulse rounded-lg bg-gray-200" />
+      ) : (
+        <p className="mt-1 text-xl font-bold text-gray-900">{value}</p>
+      )}
       <p className="mt-1 text-xs text-gray-500">{detail}</p>
     </div>
   );
 }
 
+
 function ArticleSkeletonGrid() {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="h-44 animate-pulse rounded-[28px] border border-gray-200 bg-gray-100" />
       ))}

@@ -1147,40 +1147,24 @@ async def get_quote(db: AsyncSession, ticker: str, refresh: bool = False) -> Quo
     ticker_to_fetch = asset.ticker
     quote: Optional[dict] = None
 
-    if asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.INDEX}:
-        quote = await _quote_from_polygon(ticker_to_fetch)
-        if quote is None:
-            quote = await _quote_from_eodhd(ticker_to_fetch)
+    if asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.INDEX, AssetType.COMMODITY, AssetType.FOREX}:
+        quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
         if quote is None:
             quote = await _quote_from_finnhub(ticker_to_fetch)
-        if quote is None:
-            quote = await _quote_from_alpaca(ticker_to_fetch)
-        if quote is None:
-            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
-        if quote is None:
-            quote = await _quote_from_alpha_vantage(ticker_to_fetch)  # last: 25 req/day free limit
-        if quote is None:
-            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
-    elif asset.asset_type == AssetType.FOREX:
-        quote = await _quote_from_fcsapi(ticker_to_fetch)
-        if quote is None:
-            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
-        if quote is None:
-            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
-    elif asset.asset_type == AssetType.CRYPTO:
-        quote = await _quote_from_binance(ticker_to_fetch)
-        if quote is None:
-            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
-        if quote is None:
-            quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
-    elif asset.asset_type == AssetType.COMMODITY:
-        quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
         if quote is None:
             quote = await _quote_from_polygon(ticker_to_fetch)
         if quote is None:
-            quote = await _quote_from_finnhub(ticker_to_fetch)
+            quote = await _quote_from_alpaca(ticker_to_fetch)
+        if quote is None:
+            quote = await _quote_from_fcsapi(ticker_to_fetch)
+        if quote is None:
+            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
+    elif asset.asset_type == AssetType.CRYPTO:
+        quote = await _quote_from_binance(ticker_to_fetch)
         if quote is None:
             quote = await _quote_from_yahoo(ticker_to_fetch, asset.asset_type)
+        if quote is None:
+            quote = await _quote_from_twelve_data(ticker_to_fetch, asset.asset_type)
 
     if quote is not None:
         await _persist_quote(db, asset.id, quote)
@@ -1632,92 +1616,49 @@ async def get_ohlcv(
     points: list[OHLCVPointOut] = []
     source = "db"
 
-    if asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.INDEX}:
-        eodhd_points = await _ohlcv_from_eodhd(ticker_to_fetch, limit=limit)
-        if eodhd_points:
-            points = eodhd_points
-            source = "eodhd"
+    if asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.INDEX, AssetType.COMMODITY, AssetType.FOREX}:
+        yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
+        if yahoo_points:
+            points = yahoo_points
+            source = "yahoo"
         else:
-            alpaca_points = await _ohlcv_from_alpaca(ticker_to_fetch, limit=limit)
-            if alpaca_points:
-                points = alpaca_points
-                source = "alpaca"
+            eodhd_points = await _ohlcv_from_eodhd(ticker_to_fetch, limit=limit)
+            if eodhd_points:
+                points = eodhd_points
+                source = "eodhd"
             else:
-                av_points = await _ohlcv_from_alpha_vantage(ticker_to_fetch, limit=limit)
-                if av_points:
-                    points = av_points
-                    source = "alphavantage"
+                alpaca_points = await _ohlcv_from_alpaca(ticker_to_fetch, limit=limit)
+                if alpaca_points:
+                    points = alpaca_points
+                    source = "alpaca"
                 else:
-                    finnhub_points = await _ohlcv_from_finnhub(ticker_to_fetch, limit=limit)
-                    if finnhub_points:
-                        points = finnhub_points
-                        source = "finnhub"
-                    else:
-                        twelve_points = await _ohlcv_from_twelve_data(
-                            ticker_to_fetch,
-                            limit=limit,
-                            asset_type=asset.asset_type,
-                        )
-                        if twelve_points:
-                            points = twelve_points
-                            source = "twelve_data"
-                        else:
-                            yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
-                            if yahoo_points:
-                                points = yahoo_points
-                                source = "yahoo"
-    elif asset.asset_type == AssetType.FOREX:
-        fcs_points = await _ohlcv_from_fcsapi(ticker_to_fetch, limit=limit)
-        if fcs_points:
-            points = fcs_points
-            source = "fcsapi"
-        else:
-            twelve_points = await _ohlcv_from_twelve_data(
-                ticker_to_fetch,
-                limit=limit,
-                asset_type=asset.asset_type,
-            )
-            if twelve_points:
-                points = twelve_points
-                source = "twelve_data"
-            else:
-                yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
-                if yahoo_points:
-                    points = yahoo_points
-                    source = "yahoo"
+                    twelve_points = await _ohlcv_from_twelve_data(
+                        ticker_to_fetch,
+                        limit=limit,
+                        asset_type=asset.asset_type,
+                    )
+                    if twelve_points:
+                        points = twelve_points
+                        source = "twelve_data"
     elif asset.asset_type == AssetType.CRYPTO:
         binance_points = await _ohlcv_from_binance(ticker_to_fetch, limit=limit)
         if binance_points:
             points = binance_points
             source = "binance"
         else:
-            twelve_points = await _ohlcv_from_twelve_data(
-                ticker_to_fetch,
-                limit=limit,
-                asset_type=asset.asset_type,
-            )
-            if twelve_points:
-                points = twelve_points
-                source = "twelve_data"
-            else:
-                yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
-                if yahoo_points:
-                    points = yahoo_points
-                    source = "yahoo"
-    elif asset.asset_type == AssetType.COMMODITY:
-        twelve_points = await _ohlcv_from_twelve_data(
-            ticker_to_fetch,
-            limit=limit,
-            asset_type=asset.asset_type,
-        )
-        if twelve_points:
-            points = twelve_points
-            source = "twelve_data"
-        else:
             yahoo_points = await _ohlcv_from_yahoo(ticker_to_fetch, asset.asset_type, limit=limit)
             if yahoo_points:
                 points = yahoo_points
                 source = "yahoo"
+            else:
+                twelve_points = await _ohlcv_from_twelve_data(
+                    ticker_to_fetch,
+                    limit=limit,
+                    asset_type=asset.asset_type,
+                )
+                if twelve_points:
+                    points = twelve_points
+                    source = "twelve_data"
 
     if points and source in {"eodhd", "alpaca", "fcsapi", "finnhub", "twelve_data", "alphavantage", "binance", "yahoo"}:
         await _persist_ohlcv(db, asset.id, points)

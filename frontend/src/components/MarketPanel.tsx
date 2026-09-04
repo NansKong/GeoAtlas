@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Activity, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { Activity, Search, TrendingDown, TrendingUp, Wifi, WifiOff } from "lucide-react";
 
 import {
   fetchMarketFundamentals,
@@ -26,112 +26,198 @@ function compactNumber(value?: number): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(value);
 }
 
-function MiniPriceChart({ points }: { points: OHLCVPoint[] }) {
-  if (!points.length) {
-    return (
-      <div className="h-36 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-sm text-gray-400">
-        No chart data available
-      </div>
-    );
-  }
-
-  const ordered = toAscending(points);
-  const closes = ordered.map((point) => point.close);
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
-  const width = 560;
-  const height = 170;
-  const padding = 12;
-  const plotWidth = width - padding * 2;
-  const plotHeight = height - padding * 2;
-  const range = Math.max(max - min, 0.000001);
-
-  const coords = closes.map((close, index) => {
-    const x = padding + (index / Math.max(closes.length - 1, 1)) * plotWidth;
-    const y = padding + (1 - (close - min) / range) * plotHeight;
-    return { x, y };
-  });
-  const polylinePoints = coords.map((point) => `${point.x},${point.y}`).join(" ");
-  const lastCoord = coords[coords.length - 1];
-
-  const isUp = closes[closes.length - 1] >= closes[0];
-  const stroke = isUp ? "#0f766e" : "#be123c";
-  const fill = isUp ? "rgba(13,148,136,0.12)" : "rgba(225,29,72,0.12)";
-
-  const areaPath = [
-    `M ${coords[0].x},${coords[0].y}`,
-    ...coords.slice(1).map((point) => `L ${point.x},${point.y}`),
-    `L ${padding + plotWidth},${height - padding}`,
-    `L ${padding},${height - padding}`,
-    "Z",
-  ].join(" ");
-
-  const lastTimestampRaw = ordered[ordered.length - 1]?.timestamp;
-  const lastTimestamp = lastTimestampRaw ? new Date(lastTimestampRaw) : null;
-  const asOfLabel =
-    lastTimestamp && !Number.isNaN(+lastTimestamp)
-      ? lastTimestamp.toLocaleString([], {
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : null;
-  const labelOnRight = lastCoord.x <= width - 130;
-  const labelX = labelOnRight ? lastCoord.x + 8 : lastCoord.x - 8;
-  const labelY = Math.max(padding + 10, lastCoord.y - 8);
-  const textAnchor: "start" | "end" = labelOnRight ? "start" : "end";
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40 rounded-2xl bg-white border border-gray-200">
-      <defs>
-        <linearGradient id="marketAreaFade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={stroke} stopOpacity="0.24" />
-          <stop offset="100%" stopColor={stroke} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width={width} height={height} fill="transparent" />
-      <path d={areaPath} fill={fill} />
-      <path d={areaPath} fill="url(#marketAreaFade)" />
-      <polyline points={polylinePoints} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={lastCoord.x} cy={lastCoord.y} r="4.5" fill={stroke} />
-      {asOfLabel && (
-        <text x={labelX} y={labelY} fill="#6b7280" fontSize="10" textAnchor={textAnchor}>
-          as of {asOfLabel}
-        </text>
-      )}
-    </svg>
-  );
-}
-
 function mergeLivePoint(points: OHLCVPoint[], quote?: MarketQuote | null): OHLCVPoint[] {
   if (!points.length || !quote) return points;
   const ordered = toAscending(points);
   const quoteTs = +new Date(quote.as_of);
   const lastIdx = ordered.length - 1;
   const lastTs = +new Date(ordered[lastIdx].timestamp);
-
   if (Number.isNaN(quoteTs)) return ordered;
-
   if (quoteTs <= lastTs + 60_000) {
-    const updatedLast = { ...ordered[lastIdx], close: quote.price };
-    return [...ordered.slice(0, lastIdx), updatedLast];
+    return [...ordered.slice(0, lastIdx), { ...ordered[lastIdx], close: quote.price }];
   }
-
-  return [
-    ...ordered,
-    {
-      timestamp: quote.as_of,
-      close: quote.price,
-    },
-  ];
+  return [...ordered, { timestamp: quote.as_of, close: quote.price }];
 }
 
+// ── Professional Light Theme Chart ───────────────────────────────────────────
+function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  if (!points.length) {
+    return (
+      <div className="h-full min-h-[240px] rounded-2xl flex items-center justify-center text-sm text-gray-400 bg-white">
+        No chart data available
+      </div>
+    );
+  }
+
+  const ordered = toAscending(points);
+  const closes = ordered.map((p) => p.close);
+  const isUp = closes[closes.length - 1] >= closes[0];
+
+  // Layout
+  const W = 800, H = 250;
+  const padL = 12, padR = 80, padT = 16, padB = 30;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const minClose = Math.min(...closes);
+  const maxClose = Math.max(...closes);
+  const range = Math.max(maxClose - minClose, 0.000001);
+  // Add padding top and bottom so line doesn't hit top/bottom edges
+  const paddedMin = minClose - range * 0.08;
+  const paddedMax = maxClose + range * 0.12;
+  const paddedRange = paddedMax - paddedMin;
+
+  const toX = (i: number) => padL + (i / Math.max(closes.length - 1, 1)) * plotW;
+  const toY = (v: number) => padT + (1 - (v - paddedMin) / paddedRange) * plotH;
+
+  const coords = closes.map((c, i) => ({ x: toX(i), y: toY(c) }));
+  const lastPt = coords[coords.length - 1];
+  const lastPrice = closes[closes.length - 1];
+
+  const linePath = coords.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
+  const areaPath = [
+    linePath,
+    `L ${lastPt.x},${padT + plotH}`,
+    `L ${padL},${padT + plotH}`,
+    "Z",
+  ].join(" ");
+
+  // Y-axis grid lines (4 levels)
+  const yLevels = 4;
+  const gridLines = Array.from({ length: yLevels + 1 }, (_, i) => {
+    const fraction = i / yLevels;
+    const value = paddedMax - fraction * paddedRange;
+    const y = padT + fraction * plotH;
+    return { y, value };
+  });
+
+  // X-axis time labels (5 evenly spaced)
+  const xLabels = [0, 0.25, 0.5, 0.75, 1].map((frac) => {
+    const idx = Math.round(frac * (ordered.length - 1));
+    const ts = ordered[idx]?.timestamp;
+    const d = ts ? new Date(ts) : null;
+    const label = d && !isNaN(+d)
+      ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "";
+    return { x: toX(idx), label };
+  });
+
+  const stroke = isUp ? "#10b981" : "#f43f5e";
+  const gradientId = `grad-${ticker}`;
+  const glowId = `glow-${ticker}`;
+
+  // Current price label — clamp so it doesn't overflow top/bottom
+  const labelY = Math.max(padT + 12, Math.min(lastPt.y, padT + plotH - 8));
+
+  return (
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full h-full"
+      preserveAspectRatio="none"
+      aria-label={`${ticker} price chart`}
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.25" />
+          <stop offset="75%" stopColor={stroke} stopOpacity="0.04" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* White Background */}
+      <rect x="0" y="0" width={W} height={H} fill="#ffffff" />
+
+      {/* Dashed horizontal grid lines + Y labels */}
+      {gridLines.map(({ y, value }) => (
+        <g key={y}>
+          <line
+            x1={padL} y1={y} x2={padL + plotW} y2={y}
+            stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4,6"
+          />
+          <text
+            x={padL + plotW + 6} y={y + 4}
+            fill="#9ca3af" fontSize="9" textAnchor="start" fontWeight="500"
+          >
+            {value >= 1000
+              ? value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+              : value.toFixed(2)}
+          </text>
+        </g>
+      ))}
+
+      {/* Area fill */}
+      <path d={areaPath} fill={`url(#${gradientId})`} />
+
+      {/* Price line */}
+      <path
+        d={linePath}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+
+      {/* Vertical line at last point */}
+      <line
+        x1={lastPt.x} y1={padT} x2={lastPt.x} y2={padT + plotH}
+        stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,4"
+      />
+
+      {/* Glowing dot */}
+      <circle cx={lastPt.x} cy={lastPt.y} r="6" fill={stroke} opacity="0.25" filter={`url(#${glowId})`} />
+      <circle cx={lastPt.x} cy={lastPt.y} r="3.5" fill={stroke} />
+
+      {/* Current price badge on the right */}
+      <rect
+        x={padL + plotW + 2} y={labelY - 9}
+        width={padR - 4} height={16}
+        rx="4" fill={stroke}
+      />
+      <text
+        x={padL + plotW + padR / 2} y={labelY + 3}
+        fill="#fff" fontSize="9" fontWeight="700" textAnchor="middle"
+      >
+        {lastPrice >= 1000
+          ? lastPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : lastPrice.toFixed(2)}
+      </text>
+
+      {/* X-axis time labels */}
+      {xLabels.map(({ x, label }) => (
+        <text key={x} x={x} y={H - 6} fill="#9ca3af" fontSize="9" textAnchor="middle" fontWeight="500">
+          {label}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function MarketPanel({ customTicker }: { customTicker?: string }) {
-  const [internalTicker, setInternalTicker] = useState("NVDA");
-  const activeTicker = customTicker || internalTicker;
+  const [internalTicker, setInternalTicker] = useState(customTicker || "NVDA");
+  const [inputTicker, setInputTicker] = useState(customTicker || "NVDA");
   const [streamQuote, setStreamQuote] = useState<MarketQuote | null>(null);
   const [streamStatus, setStreamStatus] = useState<"connecting" | "live" | "offline">("connecting");
+
+  useEffect(() => {
+    if (customTicker) {
+      setInternalTicker(customTicker);
+      setInputTicker(customTicker);
+    }
+  }, [customTicker]);
+
+  const activeTicker = internalTicker;
 
   const quoteQuery = useQuery({
     queryKey: ["market-quote", activeTicker],
@@ -155,7 +241,6 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
   useEffect(() => {
     setStreamQuote(null);
     setStreamStatus("connecting");
-
     const ws = new WebSocket(getMarketWsUrl([activeTicker]));
     ws.onopen = () => setStreamStatus("live");
     ws.onerror = () => setStreamStatus("offline");
@@ -163,10 +248,8 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
     ws.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data) as Partial<MarketStreamPriceUpdate> & { type?: string };
-        if (payload.type !== "price_update") return;
-        if (!payload.ticker || payload.ticker !== activeTicker) return;
+        if (payload.type !== "price_update" || payload.ticker !== activeTicker) return;
         if (typeof payload.price !== "number" || typeof payload.as_of !== "string") return;
-
         setStreamQuote({
           ticker: payload.ticker,
           price: payload.price,
@@ -175,14 +258,9 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
           source: payload.source ?? "stream",
           cache_hit: false,
         });
-      } catch {
-        // Ignore non-JSON or control messages.
-      }
+      } catch { /* ignore */ }
     };
-
-    return () => {
-      ws.close();
-    };
+    return () => ws.close();
   }, [activeTicker]);
 
   const activeQuote = streamQuote ?? quoteQuery.data;
@@ -193,133 +271,154 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
   const deltaPct = prevClose && delta !== undefined ? (delta / prevClose) * 100 : undefined;
   const isUp = (delta ?? 0) >= 0;
 
-  const [inputTicker, setInputTicker] = useState(activeTicker);
-
-  useEffect(() => {
-    setInputTicker(activeTicker);
-  }, [activeTicker]);
-
   const onApplyTicker = () => {
-    const normalized = inputTicker.trim().toUpperCase();
-    if (normalized && !customTicker) {
-      setInternalTicker(normalized);
-    }
+    const n = inputTicker.trim().toUpperCase();
+    if (n) setInternalTicker(n);
   };
 
+  const StreamIcon = streamStatus === "live" ? Wifi : WifiOff;
+  const streamColor = streamStatus === "live" ? "text-emerald-500" : "text-gray-400";
+
   return (
-    <section className="mb-7 rounded-[1.4rem] bg-gradient-to-br from-white via-[#f5faf9] to-[#edf5ff] border border-gray-200 p-4 md:p-5 shadow-sm">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-geo-600" />
-            <h2 className="text-base md:text-lg font-bold text-gray-900">Market Pulse</h2>
+    <section className="mb-7 rounded-[1.4rem] border border-gray-200 overflow-hidden shadow-sm bg-white">
+      {/* Header bar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <Activity className="w-5 h-5 text-emerald-600" />
+          <h2 className="text-base font-bold text-gray-900">Market Pulse</h2>
+          <span className={`ml-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${streamColor}`}>
+            <StreamIcon className="w-3 h-3" />
+            {streamStatus}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              value={inputTicker}
+              onChange={(e) => setInputTicker(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === "Enter") onApplyTicker(); }}
+              className="pl-8 pr-3 h-9 w-28 md:w-32 rounded-full border border-gray-200 bg-gray-50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              placeholder="Ticker"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                value={inputTicker}
-                onChange={(e) => setInputTicker(e.target.value.toUpperCase())}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onApplyTicker();
-                }}
-                className="pl-8 pr-3 h-9 w-28 md:w-32 rounded-full border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-geo-300"
-                placeholder="Ticker"
-              />
-            </div>
+          <button
+            onClick={onApplyTicker}
+            className="h-9 px-4 rounded-full bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors"
+          >
+            Load
+          </button>
+        </div>
+      </div>
+
+      {/* Quick tickers */}
+      {!customTicker && (
+        <div className="flex items-center gap-2 overflow-x-auto px-5 py-2.5 border-b border-gray-100 scrollbar-none">
+          {QUICK_TICKERS.map((t) => (
             <button
-              onClick={onApplyTicker}
-              className="h-9 px-3 rounded-full bg-geo-600 text-white text-sm font-semibold hover:bg-geo-700 transition-colors"
+              key={t}
+              onClick={() => { setInputTicker(t); setInternalTicker(t); }}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold border transition-all ${
+                activeTicker === t
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+              }`}
             >
-              Load
+              {t}
             </button>
+          ))}
+        </div>
+      )}
+
+      {/* Body: left stats + right chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] items-stretch">
+        {/* Left: price + fundamentals */}
+        <div className="p-5 border-b lg:border-b-0 lg:border-r border-gray-100 flex flex-col justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-3">{activeTicker}</p>
+
+            {quoteQuery.isLoading ? (
+              <div className="space-y-2">
+                <div className="h-10 w-40 rounded-lg bg-gray-100 animate-pulse" />
+                <div className="h-5 w-28 rounded bg-gray-100 animate-pulse" />
+              </div>
+            ) : quoteQuery.isError || !activeQuote ? (
+              <p className="text-sm text-red-500">Quote unavailable</p>
+            ) : (
+              <>
+                <p className="text-4xl font-black text-gray-900 tracking-tight tabular-nums">
+                  {activeQuote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5 font-medium">{activeQuote.currency}</p>
+
+                {delta !== undefined && deltaPct !== undefined && (
+                  <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold ${
+                    isUp ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                  }`}>
+                    {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    {delta >= 0 ? "+" : ""}{delta.toFixed(2)} ({deltaPct >= 0 ? "+" : ""}{deltaPct.toFixed(2)}%)
+                  </div>
+                )}
+
+                <div className="mt-4 space-y-1 text-xs text-gray-400">
+                  <p>Source: <span className="text-gray-600 font-medium">{activeQuote.source}</span></p>
+                  <p>Cache: <span className="text-gray-600 font-medium">{activeQuote.cache_hit ? "hit" : "miss"}</span></p>
+                  <p>Updated: <span className="text-gray-600 font-medium">{formatDistanceToNow(new Date(activeQuote.as_of), { addSuffix: true })}</span></p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Fundamentals */}
+          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+            {fundamentalsQuery.isLoading ? (
+              <p className="text-xs text-gray-400">Loading...</p>
+            ) : fundamentalsQuery.data ? (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+                {[
+                  ["Mkt Cap", compactNumber(fundamentalsQuery.data.market_cap)],
+                  ["P/E", fundamentalsQuery.data.pe_ratio?.toFixed(2) ?? "N/A"],
+                  ["EPS", fundamentalsQuery.data.eps?.toFixed(2) ?? "N/A"],
+                  ["Div Yld", fundamentalsQuery.data.dividend_yield
+                    ? `${fundamentalsQuery.data.dividend_yield.toFixed(2)}%`
+                    : "N/A"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span className="text-gray-400 block">{label}</span>
+                    <span className="text-gray-800 font-bold">{value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Fundamentals unavailable</p>
+            )}
           </div>
         </div>
 
-        {!customTicker && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {QUICK_TICKERS.map((ticker) => (
-              <button
-                key={ticker}
-                onClick={() => {
-                  setInputTicker(ticker);
-                  setInternalTicker(ticker);
-                }}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                  activeTicker === ticker
-                    ? "bg-gray-900 text-white border-gray-900"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                {ticker}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">{activeTicker}</p>
-            {quoteQuery.isLoading ? (
-              <div className="h-9 w-32 rounded bg-gray-100 animate-pulse" />
-            ) : quoteQuery.isError || !activeQuote ? (
-              <p className="text-sm text-red-600">Quote unavailable for {activeTicker}</p>
-            ) : (
-              <>
-                <p className="text-3xl font-bold text-gray-900">
-                  {activeQuote.currency} {activeQuote.price.toFixed(2)}
-                </p>
-                {delta !== undefined && deltaPct !== undefined && (
-                  <div className={`mt-2 inline-flex items-center gap-1 text-sm font-semibold ${isUp ? "text-teal-700" : "text-rose-700"}`}>
-                    {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {delta >= 0 ? "+" : ""}
-                    {delta.toFixed(2)} ({deltaPct >= 0 ? "+" : ""}
-                    {deltaPct.toFixed(2)}%)
-                  </div>
-                )}
-                <div className="mt-3 text-xs text-gray-500 space-y-1">
-                  <p>Source: {activeQuote.source}</p>
-                  <p>Cache: {activeQuote.cache_hit ? "hit" : "miss"}</p>
-                  <p>Stream: {streamStatus}</p>
-                  <p>Updated: {formatDistanceToNow(new Date(activeQuote.as_of), { addSuffix: true })}</p>
-                </div>
-                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
-                  {fundamentalsQuery.isLoading ? (
-                    <p className="text-xs text-gray-400">Loading fundamentals...</p>
-                  ) : fundamentalsQuery.isError || !fundamentalsQuery.data ? (
-                    <p className="text-xs text-gray-400">Fundamentals unavailable</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-gray-600">
-                      <p>Mkt Cap: {compactNumber(fundamentalsQuery.data.market_cap)}</p>
-                      <p>P/E: {fundamentalsQuery.data.pe_ratio?.toFixed(2) ?? "N/A"}</p>
-                      <p>EPS: {fundamentalsQuery.data.eps?.toFixed(2) ?? "N/A"}</p>
-                      <p>Div Yld: {fundamentalsQuery.data.dividend_yield?.toFixed(2) ?? "N/A"}%</p>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-white p-3">
-            {ohlcvQuery.isLoading ? (
-              <div className="h-40 rounded-2xl bg-gray-100 animate-pulse" />
-            ) : ohlcvQuery.isError || !ohlcvQuery.data ? (
-              <div className="h-40 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm flex items-center justify-center">
-                OHLCV unavailable for {activeTicker}
+        {/* Right: white chart filling height */}
+        <div className="bg-white p-4 flex flex-col justify-between relative overflow-hidden">
+          {ohlcvQuery.isLoading ? (
+            <div className="min-h-[260px] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+            </div>
+          ) : ohlcvQuery.isError || !ohlcvQuery.data ? (
+            <div className="min-h-[260px] flex items-center justify-center text-sm text-gray-400">
+              Chart unavailable for {activeTicker}
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 w-full min-h-[240px]">
+                <PriceChart points={orderedPoints} ticker={activeTicker} />
               </div>
-            ) : (
-              <>
-                <MiniPriceChart points={orderedPoints} />
-                <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">
-                  <span>Last 30 trading days + live tick</span>
-                  <span>
-                    {ohlcvQuery.data.source} · {ohlcvQuery.data.cache_hit ? "cache hit" : "fresh"}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-2 text-[10px] text-gray-400 border-t border-gray-100 mt-1">
+                <span>Last 30 trading days + live tick</span>
+                <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
+                  {ohlcvQuery.data.source} · {ohlcvQuery.data.cache_hit ? "cache hit" : "fresh"}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>

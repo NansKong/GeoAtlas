@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   TrendingUp,
   TrendingDown,
+  Minus,
   Activity,
   Search,
   Clock,
@@ -283,7 +284,8 @@ export function MarketOverviewLayer() {
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {sortedData.map((item) => {
-                const isUp = item.change >= 0;
+                const isUp = item.change > 0;
+                const isZero = Math.abs(item.change) < 0.0001;
                 const hasIntel = !!item.tag;
                 const tag = item.tag || "";
                 const fullName = item.name || item.ticker;
@@ -315,9 +317,9 @@ export function MarketOverviewLayer() {
                       ${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
 
-                    <div className={`mt-0.5 flex items-center gap-0.5 text-xs font-bold tabular-nums ${isUp ? "text-teal-600" : "text-rose-600"}`}>
-                      {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                      {isUp ? "+" : ""}{item.change.toFixed(2)}%
+                    <div className={`mt-0.5 flex items-center gap-0.5 text-xs font-bold tabular-nums ${isZero ? "text-gray-400" : isUp ? "text-teal-600" : "text-rose-600"}`}>
+                      {isZero ? <Minus className="w-3.5 h-3.5" /> : isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                      {isZero ? "0.00%" : `${isUp ? "+" : ""}${item.change.toFixed(2)}%`}
                     </div>
 
                     {/* Intelligence Tooltip Hover */}

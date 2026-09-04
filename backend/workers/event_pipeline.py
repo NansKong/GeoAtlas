@@ -17,6 +17,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from core.config import settings
+from core.text import clean_feed_text, strip_html
 from modules.events.models import (
     Event,
     EventArticle,
@@ -48,16 +49,31 @@ from workers.alerts import evaluate_event_alerts
 
 logger = logging.getLogger(__name__)
 
-AUTO_APPROVE_THRESHOLD = 0.72
-HUMAN_REVIEW_THRESHOLD = 0.55
+AUTO_APPROVE_THRESHOLD = 0.60
+HUMAN_REVIEW_THRESHOLD = 0.50
 
 SOURCE_CREDIBILITY: dict[str, float] = {
     "reuters": 0.95,
-    "associated press": 0.93,
-    "ap news": 0.90,
-    "al jazeera": 0.84,
-    "newsapi": 0.70,
-    "gdelt": 0.75,
+    "associated press": 0.95,
+    "ap news": 0.93,
+    "bbc": 0.93,
+    "bloomberg": 0.95,
+    "financial times": 0.94,
+    "ft.com": 0.94,
+    "wall street journal": 0.95,
+    "wsj": 0.95,
+    "new york times": 0.92,
+    "nyt": 0.92,
+    "cnn": 0.90,
+    "cnbc": 0.90,
+    "al jazeera": 0.88,
+    "the guardian": 0.88,
+    "forbes": 0.85,
+    "business insider": 0.85,
+    "yahoo": 0.82,
+    "google news": 0.85,
+    "newsapi": 0.75,
+    "gdelt": 0.78,
 }
 
 EVENT_KEYWORDS: dict[EventType, tuple[str, ...]] = {
@@ -220,6 +236,11 @@ SIMILARITY_STOPWORDS = {
 }
 
 
+def _article_text(article: NewsArticle) -> str:
+    """Headline + body as plain prose, for rows ingested before markup stripping."""
+    return f"{strip_html(article.title) or ''}\n{strip_html(article.content) or ''}"
+
+
 def _infer_event_type(text: str) -> tuple[Optional[EventType], float]:
     model_label, model_score = predict_event_type(text)
     if model_label:
@@ -248,12 +269,12 @@ def _infer_event_type(text: str) -> tuple[Optional[EventType], float]:
 
 def _source_score(source: Optional[str]) -> float:
     if not source:
-        return 0.68
+        return 0.75
     source_l = source.lower()
     for key, score in SOURCE_CREDIBILITY.items():
         if key in source_l:
             return score
-    return 0.70
+    return 0.80
 
 
 def _recency_score(published_at: Optional[datetime]) -> float:
@@ -714,7 +735,7 @@ def process_unprocessed_articles(self, batch_size: int = 200):
 
         for article in articles:
             processed += 1
-            text = f"{article.title or ''}\n{article.content or ''}"
+            text = _article_text(article)
             language_code, language_confidence, relevance_score, _ = _annotate_article_nlp(article, text)
             article.sentiment_score = compute_article_sentiment(text)
 
@@ -818,7 +839,10 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                 similarity_corpus=similarity_corpus,
             )
 
-            # Dedup by title + type + country + day window.
+            # Dedup by title + type + country + day window. The cleaned title is
+            # what gets persisted, so match on it too or every markup-bearing
+            # article would re-create its own event.
+            event_title = (strip_html(article.title) or article.title)[:500]
             published_at = article.published_at or datetime.now(timezone.utc)
             published_date = published_at.date()
             proposed_tickers = sorted(
@@ -847,7 +871,7 @@ def process_unprocessed_articles(self, batch_size: int = 200):
 
             existing = session.execute(
                 select(Event).where(
-                    Event.title == article.title,
+                    Event.title == event_title,
                     Event.event_type == event_type,
                     Event.country == country,
                     func.date(Event.published_at) == published_date,
@@ -914,9 +938,10 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                 if existing.status in (EventStatus.AUTO_APPROVED, EventStatus.HUMAN_APPROVED):
                     notify_event_ids.add(str(existing.id))
             else:
+                description = clean_feed_text(article.content)
                 event = Event(
-                    title=article.title,
-                    description=(article.content[:2000] if article.content else None),
+                    title=event_title,
+                    description=description[:2000] if description else None,
                     event_type=event_type,
                     country=country,
                     severity=severity,
@@ -1022,8 +1047,7 @@ def backfill_article_nlp_metadata(self, batch_size: int = 500):
         ).scalars().all()
 
         for article in articles:
-            text = f"{article.title or ''}\n{article.content or ''}"
-            _annotate_article_nlp(article, text)
+            _annotate_article_nlp(article, _article_text(article))
             updated += 1
 
         session.commit()
@@ -1069,7 +1093,7 @@ def backfill_event_entities(self, batch_size: int = 250):
             if not articles:
                 continue
 
-            combined_text = "\n".join(f"{article.title or ''}\n{article.content or ''}" for article in articles)
+            combined_text = "\n".join(_article_text(article) for article in articles)
             tickers = extract_asset_mentions(combined_text, asset_tickers, asset_alias_map)
             tags = extract_entity_tags(combined_text, tickers, asset_lookup)
 

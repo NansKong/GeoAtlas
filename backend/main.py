@@ -18,7 +18,10 @@ _snapshot_task = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── Startup ──────────────────────────────────────────────────────────────
+    # ── Startup (GeoAtlas API - Optimized High Performance) ───────────────────
+
+
+
     global _snapshot_task
     print(f"🌍 GeoAtlas API starting — env: {settings.APP_ENV}")
     await market_stream_manager.start()

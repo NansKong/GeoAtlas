@@ -157,6 +157,9 @@ def normalize_price(data, source):
 
 def choose_best(*candidates):
     for c in candidates:
+        if c and c.get("price") and c.get("change") not in (0.0, None):
+            return c
+    for c in candidates:
         if c and c.get("price"):
             return c
     return None
@@ -251,7 +254,10 @@ async def fetch_polygon_per_ticker(tickers: list):
                 data = response.json()
                 results = data.get("results")
                 if results:
-                    out[ticker] = normalize_price({"price": results[0]["c"]}, "polygon")
+                    close_p = results[0].get("c")
+                    open_p = results[0].get("o") or close_p
+                    change_pct = (((close_p - open_p) / open_p) * 100) if open_p > 0 else 0.0
+                    out[ticker] = normalize_price({"price": close_p, "change": change_pct}, "polygon")
         except Exception as e:
             logger.debug(f"Polygon failed for {ticker}: {e}")
 
@@ -277,8 +283,9 @@ async def fetch_finnhub_per_ticker(tickers: list):
             if response.status_code == 200:
                 data = response.json()
                 price = data.get("c")
+                dp = data.get("dp")
                 if price and float(price) > 0:
-                    out[ticker] = normalize_price({"price": price}, "finnhub")
+                    out[ticker] = normalize_price({"price": price, "change": dp if dp is not None else 0.0}, "finnhub")
         except Exception as e:
             logger.debug(f"Finnhub failed for {ticker}: {e}")
 
@@ -537,7 +544,7 @@ async def run_snapshot_loop():
             missing = []
             for a in assets:
                 q = await _quote_from_db(db, a.id)
-                if q and q.get("price"):
+                if q and q.get("price") and q.get("change") != 0.0:
                     warmup_snap.append({
                         "id": str(a.id),
                         "ticker": a.ticker,
@@ -575,11 +582,6 @@ async def run_snapshot_loop():
 
     cycle = 0
     next_tick = time.time()
-    # Assets created before this worker started are "known" (seeded, or discovered by
-    # an earlier run) and always ride the low-priority tier uncapped, same as today.
-    # Assets discovered WHILE this worker is running are the unbounded-growth risk —
-    # auto-discovery keeps adding them — so only the most recent DYNAMIC_DISCOVERY_CAP
-    # of those ride along each cycle.
     worker_start_time = datetime.now(timezone.utc)
 
     while True:
@@ -623,12 +625,8 @@ async def run_snapshot_loop():
             dynamic_candidates.sort(key=lambda pair: pair[0], reverse=True)
             equity_tickers_low.extend(t for _, t in dynamic_candidates[:DYNAMIC_DISCOVERY_CAP])
 
-            # Priority scheduling: LOW tickers only on every 4th cycle
-            fetch_equities = equity_tickers_high[:]
-            if cycle % 2 == 0:
-                fetch_equities.extend(equity_tickers_low[:len(equity_tickers_low) // 2])
-            if cycle % 4 == 0:
-                fetch_equities.extend(equity_tickers_low[len(equity_tickers_low) // 2:])
+            # Fetch all equities on every cycle for live price updates
+            fetch_equities = equity_tickers_high + equity_tickers_low
 
             # 3. Fetch providers with soft-timeout (asyncio.wait)
             # NOTE: Alpha Vantage free tier = 25 req/day → only run every 8th cycle
@@ -695,28 +693,27 @@ async def run_snapshot_loop():
 
                     if asset.asset_type == AssetType.CRYPTO:
                         key = normalize_crypto_ticker(ticker)
-                        data = binance_res["data"].get(key)
+                        data = choose_best(
+                            binance_res["data"].get(key),
+                            yahoo_res["data"].get(ticker),
+                        )
                     elif asset.asset_type == AssetType.FOREX:
                         key = normalize_forex(ticker)
                         data = choose_best(
+                            yahoo_res["data"].get(ticker),
                             fcs_res["data"].get(key),
                             twelvedata_res["data"].get(key),
-                            yahoo_res["data"].get(ticker),
                         )
                     elif asset.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.COMMODITY, AssetType.INDEX}:
                         data = choose_best(
+                            yahoo_res["data"].get(ticker),
+                            finnhub_res["data"].get(ticker),
                             polygon_res["data"].get(ticker),
-                            eodhd_res["data"].get(ticker),
                             alpaca_res["data"].get(ticker),
+                            eodhd_res["data"].get(ticker),
                             alpha_vantage_res["data"].get(ticker),
+                            twelvedata_res["data"].get(ticker),
                         )
-                        if not data:
-                            data = choose_best(
-                                finnhub_res["data"].get(ticker),
-                                twelvedata_res["data"].get(ticker),
-                            )
-                        if not data:
-                            data = yahoo_res["data"].get(ticker)
 
                     # Fallback to last-good cache or database MarketPrice
                     if not data:

@@ -132,7 +132,7 @@ async def market_snapshot_endpoint(db: AsyncSession = Depends(get_db)):
     missing_assets = []
     for a in assets:
         q = await _quote_from_db(db, a.id)
-        if q and q.get("price"):
+        if q and q.get("price") and q.get("change") != 0.0:
             snap.append({
                 "id": str(a.id),
                 "ticker": a.ticker,

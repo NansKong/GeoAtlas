@@ -1,317 +1,133 @@
-# GeoAtlas — Technical Requirements
+# GeoAtlas — Technical Requirements & System Architecture
 
 ## 1. Product Vision
-A real-time intelligence platform that maps global geopolitical events to financial market movements and AI-driven predictions.
+A real-time geopolitical intelligence platform that ingests global events, extracts geopolitical and macroeconomic signals using NLP, maps affected assets via a Knowledge Graph, and generates market impact predictions.
 
 **Core flow:**
 ```
-Global Event → Sector Impact → Market Movement → Predicted Outcome
+Global Event → NLP & Noise Filter → Knowledge Graph Asset Mapping → Market Pulse (Yahoo Finance / Binance) → AI Prediction (GeoAtlas-Ensemble-v1)
 ```
-
-**Example:**
-- Event: China sanctions Taiwan semiconductor exports
-- Impact: Semiconductor supply chain risk
-- Affected Assets: TSMC, NVIDIA, AMD
-- Prediction: Short-term volatility ↑, Chip ETFs ↓
 
 ---
 
 ## 2. Target Users
-| Tier | Users |
-|------|-------|
-| Primary | Retail traders, macro investors, geopolitics enthusiasts |
-| Secondary | Hedge fund analysts, policy researchers, journalists, students |
+| Tier | Users | Description |
+|------|-------|-------------|
+| Primary | Macro investors, retail traders, geopolitics analysts | Track event-driven market shifts in real time |
+| Secondary | Policy researchers, risk analysts, financial journalists | Analyze supply chain & regional geopolitical risk heatmaps |
 
 ---
 
 ## 3. Core Modules
 
 ### Module 1 — Global Event Intelligence Feed
-- Real-time feed of geopolitical and macroeconomic events
-- Each event card: title, category, impact description, affected markets, prediction, sources
-- Data sources: GDELT, NewsAPI, Mediastack, EventRegistry, Reuters RSS, AP RSS, Al Jazeera RSS
-- Update cycle: every 5–10 minutes
+- **Real-Time Feed:** Aggregates macroeconomic and geopolitical news.
+- **Data Sources:** Multi-source RSS feeds (Reuters, AP, BBC, Financial Times, Al Jazeera, Bloomberg), GDELT, NewsAPI, Mediastack, EventRegistry.
+- **Sanitization:** `clean_feed_text` strips HTML markup, unescapes HTML entities, and normalizes unicode characters prior to ingestion.
+- **Update Frequency:** Scheduled ingestion loop every 5–10 minutes via Celery Beat.
 
-### Module 2 — Event Intelligence Engine (NLP Pipeline)
-Converts raw news into structured geopolitical events.
+### Module 2 — Event Intelligence Engine (NLP Pipeline & Noise Filter)
+Converts raw news into structured, actionable geopolitical events.
 
-Pipeline stages:
-1. Language Detection (langdetect / fastText) — >99% accuracy
-2. Relevance Filter (DistilBERT) — geopolitical Y/N — >92% precision
-3. NER Extraction (spaCy + fine-tuned transformer) — >88% F1
-4. Event Classification (RoBERTa) — 7 categories — >85% F1
-5. Sentiment Scoring (FinBERT) — Pearson >0.75
+1. **Text Sanitization:** HTML tag stripping and entity normalization.
+2. **Relevance & Noise Filter:** Dual-layer blocklist filtering (`purge_non_macro.py`, `cleanup_irrelevant_events.py`) to purge sports, entertainment, and lifestyle stories.
+3. **NER Extraction:** spaCy entity recognition for countries, organizations, and commodity assets.
+4. **Sentiment Scoring:** FinBERT NLP sentiment classification.
+5. **Confidence Gating & Moderation:**
+   - `>= 0.60` → **AUTO_APPROVED** (published directly to dashboard)
+   - `0.40–0.59` → **PENDING_REVIEW** (moderation queue / `publish_pending_review.py`)
+   - `< 0.40` → **REJECTED**
 
-Event types: `conflict`, `sanction`, `trade_policy`, `economic_data`, `energy_disruption`, `election`, `regulation`
-
-Structured output:
-```json
-{
-  "title": "China restricts gallium exports",
-  "event_type": "Trade Policy",
-  "country": "China",
-  "sector": "Semiconductors",
-  "affected_assets": ["NVDA", "AMD", "TSM"],
-  "impact": "negative",
-  "confidence": 0.74
-}
-```
-
-Confidence gating:
-- `>= 0.72` → AUTO_APPROVED
-- `0.55–0.72` → PENDING_REVIEW (human queue)
-- `< 0.55` → REJECTED
+Event types: `conflict`, `sanction`, `trade_policy`, `economic_data`, `energy_disruption`, `election`, `regulation`.
 
 ### Module 3 — Live Market Data Engine
-- Assets: Stocks, ETFs, Commodities, Crypto, Forex
-- APIs: Polygon.io (real-time WebSocket), Twelve Data (Forex/commodities), CoinGecko Pro (crypto)
-- Features: real-time price, OHLCV, charts, volatility indicators
-- WebSocket multiplexing: 1 upstream connection → fan-out to all subscribed users
+- **Primary Data Provider:** **Yahoo Finance (`yfinance`)** for Equities, ETFs, Commodities, Market Indices, and Forex pairs.
+- **Crypto Data Provider:** **Binance API** for cryptocurrency pairs (`BTC-USD`, `ETH-USD`, `SOL-USD`).
+- **Resilience & Fallback Hierarchy:**
+  - Multi-tier quote resolution hierarchy to eliminate 429 rate limits from legacy providers (Alpaca, TwelveData, FCS).
+  - Seed database quote fallbacks for instant DB warmup.
+  - Non-zero price change selection logic (`choose_best()`).
+- **Auto-Discovery & Ticker Search:** Real-time ticker search and scheduled asset price snapshot worker (`market_snapshot.py`).
 
-### Module 4 — AI Market Impact Prediction
-4 specialized models:
-| Model | Type | Horizon | Output |
-|-------|------|---------|--------|
-| ShortPulse | FinBERT + linear head | 1h–6h | Direction + probability |
-| TrendForce | XGBoost | 24h–7d | % change range |
-| VolatilityNet | LSTM | 1h–24h | Volatility spike probability |
-| RegimeFilter | Random Forest | Always-on | Market regime |
+### Module 4 — AI Market Impact Prediction Surface
+Powered by **GeoAtlas-Ensemble-v1**:
+- **Ensemble Architecture:** Fuses **FinBERT NLP sentiment scores** with **Chronos T5 time-series forecasting**.
+- **Prediction Horizons:** Short-term (1h–6h), Mid-term (24h), and Volatility risk scoring.
+- **Caching & Performance:** TTL-based accuracy caching to optimize endpoint query speeds.
+- **Automated Lifecycle:** `purge_stale_predictions.py` cleans up expired forecasts; `generate_live_predictions.py` generates fresh predictions for active assets.
 
-Production rule: only ship predictions for event types with back-test accuracy >60%.
+### Module 5 — Interactive Geopolitical Map Page
+- **Light-Themed Aesthetic:** Professional research dashboard layout.
+- **Dynamic Hotspot Sidebar:** Automatically adapts sidebar labeling and metric highlights based on selected event type filter (Sanctions, Trade Policy, Armed Conflict, etc.).
+- **Event Count Badges:** Displays active event count badges for high visual clarity instead of arbitrary percentages.
 
-### Module 5 — Intelligence Boards (Pinterest-style)
-- Users create boards (e.g., "China–US Tech War", "Middle East Conflict")
-- Pin items: events, assets, predictions, news articles
-- Visibility: public / private
-- Shared alerts per board
-
-### Module 6 — Macro Intelligence Dashboard
-- World map with geopolitical event heatmap (red = conflict, green = growth)
-- Global market trend overlays
-- Regional risk heatmaps
-
-### Module 7 — Personalized Alerts
-- Users set alert rules: asset + event type + threshold
-- Triggers: email (SendGrid), web push (Firebase FCM), mobile push
-- Example: "Notify me when energy-related events affect oil"
+### Module 6 — Intelligence Boards & Watchlists
+- Custom user watchlists and theme-based pinboards.
+- Real-time price delta badges and alert triggers.
 
 ---
 
 ## 4. Tech Stack
 
-### Frontend (Web)
-- Next.js (React framework)
-- TypeScript
-- TailwindCSS
-- ShadCN UI (component library)
-- React Query (data fetching + caching)
-- Recharts + TradingView widgets (charts)
+### Frontend
+- **Framework:** Next.js (React), TypeScript
+- **Styling:** Tailwind CSS, ShadCN UI, Lucide React Icons
+- **State & Charts:** React Query, Recharts, Custom SVG Map Components
 
-### Backend
-- FastAPI (Python) — modular monolith
-- Celery + Celery Beat (background tasks + scheduling)
-- Redis (cache + task broker)
-- PostgreSQL (primary relational DB)
-- TimescaleDB (time-series market prices)
-- Elasticsearch (news + event search)
+### Backend & Async Pipeline
+- **Framework:** FastAPI (Python 3.11+), SQLAlchemy, Alembic
+- **Orchestration:** Celery, Redis (Broker & Cache)
+- **Database:** PostgreSQL + TimescaleDB (relational & time-series market snapshots)
 
-### NLP / AI
-- spaCy (NER base)
-- HuggingFace Transformers (DistilBERT, RoBERTa, FinBERT)
-- PyTorch (model training)
-- scikit-learn (XGBoost, Random Forest, feature engineering)
-- MLflow (experiment tracking)
-- langdetect (language detection)
-
-### Data Pipeline
-- Apache Kafka (event streaming)
-- Celery (task queue)
-- Apache Airflow (orchestration, optional)
-- Scrapy (web scraping fallback)
-
-### Infrastructure
-- Cloud: AWS (EC2, EKS, RDS, ElastiCache, CloudFront, S3, MSK)
-- Containers: Docker
-- Orchestration: Kubernetes (AWS EKS)
-- IaC: Terraform + Helm
-- CI/CD: GitHub Actions
-
-### Authentication
-- JWT (access + refresh tokens)
-- OAuth2 / Auth0
-
-### Observability
-- Prometheus + Grafana (metrics)
-- ELK Stack (logs)
-- Alerts: Grafana alerting rules
+### NLP & AI Models
+- **NLP:** spaCy, HuggingFace Transformers (DistilBERT, FinBERT)
+- **Time-Series / ML:** Chronos T5, PyTorch, VolatilityNet, XGBoost
+- **Sanitization:** `beautifulsoup4`, `html`, `re`
 
 ---
 
-## 5. Database Schema
+## 5. System Utilities & Maintenance Tools
 
-### PostgreSQL (Core)
-```
-users           — id, email, password_hash, username, role, subscription_plan, alert_preferences
-assets          — id, ticker, name, asset_type, sector, industry, country, exchange, currency
-events          — id, title, description, event_type, country, region, severity, source, source_url, published_at
-event_tags      — id, event_id, tag
-event_impacts   — id, event_id, asset_id, impact_direction, impact_strength, confidence_score
-predictions     — id, event_id, asset_id, predicted_direction, predicted_change_pct, predicted_at,
-                  resolve_at, actual_change_pct, outcome, model_version, confidence_score
-news_articles   — id, title, content, source, url, published_at, sentiment_score, content_hash (SHA256)
-event_articles  — id, event_id, article_id, relevance_score
-boards          — id, user_id, title, description, visibility, created_at
-pins            — id, board_id, content_type, content_id, created_at
-watchlists      — id, user_id, asset_id, created_at
-alerts          — id, user_id, asset_id, event_type, threshold, created_at
-```
-
-### Knowledge Graph (PostgreSQL)
-```
-kg_entities       — id, entity_type (ASSET|SECTOR|COUNTRY|COMMODITY), name, metadata JSONB
-kg_relationships  — id, source_id, target_id, relationship, strength (0–1), data_source, last_verified
-```
-
-### TimescaleDB
-```
-market_prices  — id, asset_id, timestamp, open, high, low, close, volume
-```
-
-### Critical Indexes
-```sql
-CREATE INDEX ON events(published_at);
-CREATE INDEX ON events(country);
-CREATE INDEX ON events(event_type);
-CREATE INDEX ON event_impacts(asset_id);
-CREATE INDEX ON market_prices(asset_id, timestamp);
-CREATE UNIQUE INDEX ON news_articles(content_hash);
-CREATE INDEX ON news_articles(published_at);
-```
+| Script | Path | Purpose |
+|--------|------|---------|
+| Non-Macro Purge | `backend/scripts/purge_non_macro.py` | Deletes sports, lifestyle, and non-geopolitical event noise |
+| Pending Publisher | `backend/scripts/publish_pending_review.py` | Auto-approves queued events meeting source credibility threshold (>=0.60) |
+| Live Prediction Generator | `backend/scripts/generate_live_predictions.py` | Computes live predictions for active market tickers |
+| Stale Prediction Purge | `backend/scripts/purge_stale_predictions.py` | Purges expired prediction records |
+| DB HTML Cleaner | `backend/scripts/clean_html_in_db.py` | Batch strips legacy raw HTML tags from stored news event descriptions |
 
 ---
 
-## 6. Asset Mapping System (4 Layers)
-| Layer | Method | Coverage | Latency |
-|-------|--------|----------|---------|
-| L1 — Direct Mention | NER entity → ticker match | ~40% of events | <10ms |
-| L2 — Supply Chain | Knowledge graph traversal (2-hop) | ~35% of events | <50ms |
-| L3 — Sector Expansion | Sector→asset with relevance weighting | ~20% of events | <20ms |
-| L4 — ML Similarity | Embedding similarity on past events | ~5% (edge cases) | <200ms |
+## 6. Security & Repository Hygiene
 
-Knowledge graph seeding sources:
-- Wikidata SPARQL (free) — industry classifications, subsidiaries
-- SEC EDGAR 10-K filings (free) — key suppliers and customers
-- OpenCorporates (free tier) — company-country-sector
-- ML-derived edges — co-movement model (future)
+- **Environment & Secret Protection:** Strictly enforced via `.gitignore` (blocking `.env*`, `secrets.*`, API key files, credentials).
+- **Certificates & Keys:** Blocks `*.pem`, `*.key`, `*.crt`, SSH keys (`id_rsa*`), and cloud CLI configs (`.aws/`, `.gcp/`).
+- **Data & Log Exclusions:** Excludes database dumps (`*.sqlite`, `*.db`), logs (`*.log`), and large datasets (`*.parquet`, `*.pkl`, `*.jsonl`).
+- **Document & PDF Restrictions:** Excludes `*.pdf`, `*.docx`, `PRD/`, and unrequired markdown files from git tracking.
+- **Authentication:** JWT access tokens with refresh token rotation and role-based access checks.
 
 ---
 
-## 7. Data Quality Requirements
-Automated gates (pre-write to DB):
-- Confidence threshold: reject if <0.55
-- Schema validation: no null required fields
-- Deduplication: SHA256(title + event_type + country + published_date)
-- Temporal consistency: event timestamp within 48h of article publish date
-- Asset validation: all tickers must exist in assets table
-
-Quality metrics (Grafana dashboard):
-| Metric | Target | Alert Threshold |
-|--------|--------|----------------|
-| Event classification accuracy | >85% | <75% |
-| NLP pipeline latency (p95) | <30s | >60s |
-| Events auto-approved rate | >70% | <50% |
-| Human review queue backlog | <100 | >500 |
-| Prediction accuracy (24h) | >58% | <50% |
-| Asset mapping coverage | >90% | <80% |
-| News ingestion freshness | <10 min lag | >30min |
+## 7. Asset Mapping Architecture (Knowledge Graph)
+1. **L1 — Direct Mention:** Extract entity Ticker directly from news text (e.g. `NVDA`, `TSM`).
+2. **L2 — Sector Expansion:** Map country/event to sector dependencies via Knowledge Graph nodes.
+3. **L3 — Supply Chain:** Graph traversal for vendor/customer linkages.
 
 ---
 
-## 8. Performance Requirements
-- News ingestion: 1000+ articles/hour
-- Event extraction latency: <30 seconds per article
-- Real-time market price update: <1 second (WebSocket)
-- Target scale: 100k users, 10k daily events, 100M market records
+## 8. Database Schema Highlights
+- `users`: User profiles, subscription plans, alert preferences.
+- `events`: Geopolitical events, severity, classification, confidence score, source URL.
+- `assets`: Financial instruments (ticker, name, asset_type, sector, exchange).
+- `event_impacts`: Relationship between events and affected assets.
+- `predictions`: Model outputs (`predicted_direction`, `predicted_change_pct`, `confidence_score`, `model_version`).
+- `market_prices`: Time-series price snapshots (`open`, `high`, `low`, `close`, `volume`).
+- `watchlists` & `boards`: User-saved assets and pinned intelligence boards.
 
 ---
 
-## 9. Security Requirements
-- JWT access tokens + refresh token rotation
-- OAuth2 / Auth0 for social login
-- RBAC (role-based access control): free / pro / institutional / admin
-- API rate limiting at gateway level
-- DDoS protection
-- Input validation on all endpoints
-- All secrets via environment variables (never hardcoded)
-
----
-
-## 10. Recommended Project Structure (Modular Monolith)
-```
-geoatlas/
-├── main.py                  # FastAPI app, mounts all routers
-├── core/
-│   ├── config.py
-│   ├── database.py
-│   └── security.py
-├── modules/
-│   ├── users/               # Auth, profiles, subscriptions
-│   │   ├── router.py
-│   │   ├── service.py
-│   │   └── models.py
-│   ├── events/              # Event intelligence, NLP pipeline
-│   │   ├── router.py
-│   │   ├── nlp_pipeline.py
-│   │   └── models.py
-│   ├── market/              # Market data, WebSocket hub
-│   ├── predictions/         # ML models, prediction tracking
-│   └── boards/              # Boards, pins, watchlists, alerts
-└── workers/                 # Celery tasks (news ingestion, NLP, verification)
-```
-
-**Microservice extraction triggers:**
-- NLP consuming >60% CPU → extract to standalone GPU worker
-- Prediction inference >5s → extract to dedicated GPU service
-- Auth becoming compliance target → isolate to Auth service
-- Team grows to 6+ engineers → full decomposition
-
----
-
-## 11. Monetization (Postponed)
-- **100% Free MVP:** For the current phase, the platform will be totally free. All users will have full, unlimited access to predictions, boards, and alerts.
-- **Removed:** Subscription tiers, limits on predictions/boards, and Stripe integration are postponed.
-
----
-
-## 12. MVP Scope (Ship First)
-Must include:
-- Live geopolitics feed (news ingestion + NLP extraction)
-- Event classification (7 event types)
-- Market data panel (price, charts)
-- Event → asset mapping (L1 + L2 layers)
-- Basic predictions (ShortPulse model only)
-- User boards (create, pin events)
-- User auth (JWT)
-
-Exclude from MVP:
-- Mobile app (Postponed indefinitely)
-- Monetization & Subscriptions (Platform will remain free for now)
-- Advanced ML ensemble (TrendForce, VolatilityNet)
-- Complex world map visualization
-- Institutional API tier
-
----
-
-## 13. External API Dependencies
-| API | Purpose | Free Limit | Recommended Plan |
-|-----|---------|-----------|-----------------|
-| Polygon.io | Real-time stock/ETF | 5 calls/min, 15min delay | Starter $29/mo |
-| Twelve Data | Forex + commodities | 8 calls/min | $29/mo |
-| CoinGecko Pro | Crypto prices | — | $129/mo |
-| NewsAPI | News articles | 100 req/day | Business $449/mo |
-| GDELT | Geopolitical events dataset | Free | Free |
-| ACLED | Conflict event data | Free (researchers) | Free |
-| SEC EDGAR | Supply chain data | Free | Free |
-| Wikidata SPARQL | Knowledge graph | Free | Free |
-| SendGrid | Email notifications | 100/day free | Essentials ~$15/mo |
-| Firebase FCM | Push notifications | Free | Free |
+## 9. System Status & Verification Plan
+- **Backend API:** Verified FastAPI routers (`events`, `market`, `predictions`, `users`).
+- **Market Snapshot:** Verified Yahoo Finance (`yfinance`) integration for equities/commodities/forex & Binance for crypto.
+- **RSS News Pipeline:** Verified zero-HTML text extraction and non-macro filtering.
+- **Frontend Dashboard:** Verified Next.js components (`MarketPanel`, `PredictionCard`, `Map` page, `WatchlistPanel`).

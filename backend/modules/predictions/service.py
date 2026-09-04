@@ -5,7 +5,7 @@ from typing import Optional
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, not_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.events.models import Event
@@ -227,12 +227,22 @@ async def compute_accuracy_metrics(db: AsyncSession) -> AccuracyMetricsOut:
 
 
 
+_accuracy_cache = {
+    "timestamp": 0.0,
+    "data": ({}, {}, None)
+}
+
 async def _accuracy_maps(
     db: AsyncSession,
     *,
     model_version: Optional[str] = None,
     horizon: Optional[PredictionHorizon] = None,
 ) -> tuple[dict[tuple[str, str], float], dict[str, float], Optional[float]]:
+    import time
+    now = time.time()
+    if horizon is None and model_version is None and (now - _accuracy_cache["timestamp"] < 60.0):
+        return _accuracy_cache["data"]
+
     accuracy_expr = _score_accuracy_case()
     where_clauses = [Prediction.outcome != PredictionOutcome.PENDING]
     if model_version:
@@ -272,7 +282,12 @@ async def _accuracy_maps(
 
     overall = await db.execute(select(func.avg(accuracy_expr)).where(*where_clauses))
     overall_accuracy = overall.scalar_one_or_none()
-    return by_model_horizon, by_event_type, float(overall_accuracy) if overall_accuracy is not None else None
+    res = (by_model_horizon, by_event_type, float(overall_accuracy) if overall_accuracy is not None else None)
+    if horizon is None and model_version is None:
+        _accuracy_cache["timestamp"] = now
+        _accuracy_cache["data"] = res
+    return res
+
 
 
 async def list_predictions(
@@ -293,12 +308,20 @@ async def list_predictions(
     )
     feature_enabled = overall_accuracy is None or overall_accuracy >= AUTO_DISABLE_THRESHOLD
 
+    IRRELEVANT_TITLE_KEYWORDS = [
+        "dating", "bar-b-que", "barbeque", "restaurant", "party", "substack", "wanna bet", 
+        "cholesterol", "meningitis", "recipe", "fashion", "celebrity", "movie", "box office", 
+        "grammy", "oscar", "sports", "nfl", "nba", "mlb", "man city", "arsenal", "chelsea", 
+        "liverpool", "barcelona", "real madrid", "premier league", "champions league", "concert"
+    ]
+
+    fetch_limit = limit * 10 if (not event_id and not ticker) else limit
     query = (
         select(Prediction, Event.title, Event.event_type, Asset.ticker, Asset.name)
         .join(Event, Event.id == Prediction.event_id)
         .join(Asset, Asset.id == Prediction.asset_id)
         .order_by(Prediction.predicted_at.desc())
-        .limit(limit)
+        .limit(fetch_limit)
         .offset(offset)
     )
     if event_id:
@@ -312,11 +335,26 @@ async def list_predictions(
 
     rows = (await db.execute(query)).all()
     items: list[PredictionOut] = []
+    seen_events: set[uuid.UUID] = set()
+
     for prediction, event_title, event_type, asset_ticker, asset_name in rows:
+        title_lower = (event_title or "").lower()
+        if any(kw in title_lower for kw in IRRELEVANT_TITLE_KEYWORDS):
+            continue
+
+        if not event_id and not ticker and prediction.event_id in seen_events:
+            continue
+        seen_events.add(prediction.event_id)
+
+
+
+
+
         model_accuracy = accuracy_by_model_horizon.get((prediction.model_version, prediction.prediction_horizon.value))
         event_type_key = event_type.value if hasattr(event_type, "value") else str(event_type)
         event_accuracy = accuracy_by_event_type.get(event_type_key)
-        eligible = feature_enabled and event_accuracy is not None and event_accuracy >= DISPLAY_ACCURACY_THRESHOLD
+        eligible = feature_enabled and (event_accuracy is None or event_accuracy >= DISPLAY_ACCURACY_THRESHOLD)
+
         item = PredictionOut(
             id=prediction.id,
             event_id=prediction.event_id,
@@ -343,7 +381,11 @@ async def list_predictions(
         if published_only and not history_only and not item.eligible_for_display:
             continue
         items.append(item)
+        seen_events.add(prediction.event_id)
+        if len(items) >= limit:
+            break
     return items
+
 
 
 async def _nearest_price_value(

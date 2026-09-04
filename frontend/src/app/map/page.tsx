@@ -49,7 +49,7 @@ function hotspotColor(conflictShare: number, eventCount: number) {
   const heat = Math.min(1, conflictShare * 0.55 + Math.min(eventCount / 15, 1) * 0.45);
   if (heat >= 0.65) return "#f04e5e";
   if (heat >= 0.35) return "#e6a832";
-  return "#20a07f";
+  return "#10b981";
 }
 
 /* ─── Country Choropleth Layer ────────────────────────────────────────────── */
@@ -94,7 +94,7 @@ function CountryChoroplethLayer({ points }: { points: GlobePoint[] }) {
         id: fillId, type: "fill", source: sourceId,
         paint: {
           "fill-color": ["interpolate", ["linear"], ["get", "heat_value"],
-            0, "#144f42", 0.35, "#20a07f", 0.65, "#c0b53b", 1, "#f04e5e"],
+            0, "#064e3b", 0.35, "#10b981", 0.65, "#d97706", 1, "#f04e5e"],
           "fill-opacity": 0.75,
         },
       }, map.getLayer("hotspot-heat") ? "hotspot-heat" : undefined);
@@ -102,7 +102,7 @@ function CountryChoroplethLayer({ points }: { points: GlobePoint[] }) {
       map.addLayer({
         id: lineId, type: "line", source: sourceId,
         paint: {
-          "line-color": "rgba(123,255,228,0.45)",
+          "line-color": "rgba(52,211,153,0.5)",
           "line-width": ["interpolate", ["linear"], ["zoom"], 0, 0.5, 4, 1.2],
         },
       });
@@ -149,8 +149,8 @@ function HeatmapGlowLayer({ points }: { points: GlobePoint[] }) {
           "heatmap-weight": ["interpolate", ["linear"], ["get", "event_count"], 1, 0.15, 20, 1],
           "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 0.3, 4, 1],
           "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"],
-            0, "rgba(32,160,127,0)", 0.25, "rgba(32,160,127,0.35)",
-            0.5, "rgba(230,168,50,0.55)", 0.75, "rgba(240,78,94,0.7)", 1, "rgba(240,78,94,0.9)"],
+            0, "rgba(16,185,129,0)", 0.25, "rgba(16,185,129,0.35)",
+            0.5, "rgba(217,119,6,0.55)", 0.75, "rgba(240,78,94,0.7)", 1, "rgba(240,78,94,0.9)"],
           "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 14, 4, 30],
           "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.6, 6, 0.3],
         },
@@ -178,12 +178,12 @@ function HotspotDot({ point }: { point: GlobePoint }) {
         <div className="relative flex items-center justify-center" style={{ width: sz * 2.4, height: sz * 2.4 }}>
           <div className="absolute inset-0 animate-ping rounded-full opacity-15" style={{ backgroundColor: color, animationDuration: "3.5s" }} />
           <div className="absolute rounded-full opacity-20" style={{ backgroundColor: color, width: sz * 1.3, height: sz * 1.3 }} />
-          <div className="relative rounded-full border border-white/40" style={{ backgroundColor: color, width: Math.max(7, sz * 0.45), height: Math.max(7, sz * 0.45), boxShadow: `0 0 10px ${color}80` }} />
+          <div className="relative rounded-full border border-white/60" style={{ backgroundColor: color, width: Math.max(7, sz * 0.45), height: Math.max(7, sz * 0.45), boxShadow: `0 0 10px ${color}80` }} />
         </div>
       </MarkerContent>
-      <MarkerTooltip offset={18}>
-        <p className="font-semibold text-[#e6fff8]">{point.country}</p>
-        <p className="mt-0.5 text-[10px] text-[#8db8ab]">
+      <MarkerTooltip offset={18} className="bg-white border border-gray-200 text-gray-900 shadow-md">
+        <p className="font-bold text-gray-900">{point.country}</p>
+        <p className="mt-0.5 text-[10px] text-gray-500 font-medium">
           {point.event_count} events · sev {point.avg_severity.toFixed(1)} · conflict {(point.conflict_share * 100).toFixed(0)}%
         </p>
       </MarkerTooltip>
@@ -196,11 +196,11 @@ function ChokepointDot({ name, coordinates, note, active }: { name: string; coor
   return (
     <MapMarker longitude={coordinates[0]} latitude={coordinates[1]}>
       <MarkerContent>
-        <div className={`h-3 w-3 rounded-full border ${active ? "border-[#fff1c4] bg-[#ffd36b]" : "border-[#6b7c4d] bg-[#9d8654]"}`} style={{ boxShadow: active ? "0 0 8px #ffd36b80" : "none" }} />
+        <div className={`h-3 w-3 rounded-full border ${active ? "border-amber-300 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "border-gray-400 bg-gray-500"}`} />
       </MarkerContent>
-      <MarkerTooltip offset={14}>
-        <p className="font-semibold text-[#ffe8b5]">{name}</p>
-        <p className="mt-0.5 text-[10px] text-[#8aa397]">{note}</p>
+      <MarkerTooltip offset={14} className="bg-white border border-gray-200 text-gray-900 shadow-md">
+        <p className="font-bold text-amber-700">{name}</p>
+        <p className="mt-0.5 text-[10px] text-gray-500 font-medium">{note}</p>
       </MarkerTooltip>
     </MapMarker>
   );
@@ -217,14 +217,13 @@ function MapGlobe({ points, mapRef, onMapRef }: { points: GlobePoint[]; mapRef: 
   }, [points]);
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-[#12362d] bg-[#020912] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_top,rgba(0,255,214,0.08),transparent_34%)]" />
-      <div className="relative z-20 flex items-center justify-between border-b border-[#0b2720] px-4 py-3">
+    <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-gray-900 shadow-sm relative">
+      <div className="relative z-20 flex items-center justify-between border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#86ffdc]">Terravox</span>
-          <span className="text-[10px] uppercase tracking-[0.26em] text-[#2a6655]">mapcn globe</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400">Terravox</span>
+          <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-semibold">mapcn globe</span>
         </div>
-        <div className="text-[10px] uppercase tracking-[0.22em] text-[#ff71af]">Countries: {points.length}</div>
+        <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-rose-400">Countries: {points.length}</div>
       </div>
 
       <div className="relative h-[620px]">
@@ -248,10 +247,10 @@ function MapGlobe({ points, mapRef, onMapRef }: { points: GlobePoint[]; mapRef: 
         </MapComponent>
       </div>
 
-      <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 border-t border-[#0b2720] px-4 py-3 text-[10px] uppercase tracking-[0.24em]">
-        <span className="text-[#315a4f]">MapLibre Globe</span>
-        <span className="text-[#86ffdc]">Drag to rotate · Wheel to zoom</span>
-        <span className="text-[#315a4f]">mapcn powered</span>
+      <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 border-t border-gray-800 bg-gray-900/90 backdrop-blur-sm px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-gray-400 font-medium">
+        <span>MapLibre Globe</span>
+        <span className="text-emerald-400 font-semibold">Drag to rotate · Wheel to zoom</span>
+        <span>mapcn powered</span>
       </div>
     </div>
   );
@@ -259,14 +258,14 @@ function MapGlobe({ points, mapRef, onMapRef }: { points: GlobePoint[]; mapRef: 
 
 /* ─── Sidebar Panels ──────────────────────────────────────────────────────── */
 function SidebarCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[24px] border border-[#11352b] bg-[#07121a] p-4 ${className ?? ""}`}>{children}</div>;
+  return <div className={`rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm ${className ?? ""}`}>{children}</div>;
 }
 
 function SidebarTitle({ icon: Icon, label, color }: { icon: typeof Globe2; label: string; color: string }) {
   return (
-    <div className="mb-3 flex items-center gap-2">
+    <div className="mb-3.5 flex items-center gap-2">
       <Icon className="h-4 w-4" style={{ color }} />
-      <h2 className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color }}>{label}</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900">{label}</h2>
     </div>
   );
 }
@@ -290,7 +289,19 @@ export default function MacroMapPage() {
 
   const plotted = useMemo(() => (heatmap ?? []).filter((p): p is GlobePoint => p.latitude !== undefined && p.longitude !== undefined), [heatmap]);
   const topCountries = useMemo(() => [...plotted].sort((a, b) => b.event_count - a.event_count).slice(0, 10), [plotted]);
-  const topConflict = useMemo(() => [...plotted].sort((a, b) => b.conflict_share * b.event_count - a.conflict_share * a.event_count).slice(0, 6), [plotted]);
+  const topConflict = useMemo(() => {
+    if (eventType && eventType !== "conflict") {
+      return [...plotted].sort((a, b) => b.event_count * b.avg_severity - a.event_count * a.avg_severity).slice(0, 6);
+    }
+    return [...plotted].sort((a, b) => b.conflict_share * b.event_count - a.conflict_share * a.event_count).slice(0, 6);
+  }, [plotted, eventType]);
+
+  const hotspotTitle = useMemo(() => {
+    if (!eventType) return "Conflict Hotspots";
+    const found = EVENT_TYPE_FILTERS.find((f) => f.value === eventType);
+    return `${found?.label ?? eventType} Hotspots`;
+  }, [eventType]);
+
   const maritimeRows = useMemo(() => {
     const active = new Set(plotted.map((r) => r.country));
     return MARITIME_CHOKEPOINTS.map((r) => ({ ...r, active: r.relatedCountries.some((c) => active.has(c)) }));
@@ -301,47 +312,65 @@ export default function MacroMapPage() {
   }, [mapInstance]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#10232c_0%,#071118_34%,#03070b_100%)] px-4 py-8 text-white">
+    <div className="min-h-screen bg-[#f8fafc] px-4 py-8 text-gray-900">
       <div className="mx-auto max-w-[1680px]">
         {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Globe2 className="h-5 w-5 text-[#74ffd6]" />
-              <h1 className="text-2xl font-semibold tracking-[0.08em] text-[#ddfff5]">Macro Globe</h1>
+              <Globe2 className="h-5 w-5 text-emerald-600" />
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Macro Globe</h1>
             </div>
-            <p className="mt-2 max-w-3xl text-sm text-[#6ea394]">Interactive MapLibre globe powered by mapcn — heat-filled countries, heatmap layers, maritime chokepoints, and hotspot markers.</p>
+            <p className="mt-1.5 max-w-3xl text-sm text-gray-500">Interactive MapLibre globe powered by mapcn — heat-filled countries, heatmap layers, maritime chokepoints, and hotspot markers.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-full border border-[#18473a] bg-[#07121a] p-1">
+            <div className="inline-flex rounded-full border border-gray-200 bg-white p-1 shadow-sm">
               {[7, 14, 30].map((w) => (
-                <button key={w} onClick={() => setDays(w)} className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${days === w ? "bg-[#72ffd2] text-[#041117]" : "text-[#91bdb0] hover:bg-[#102129]"}`}>{w}d</button>
+                <button
+                  key={w}
+                  onClick={() => setDays(w)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
+                    days === w ? "bg-gray-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {w}d
+                </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {EVENT_TYPE_FILTERS.map((o) => (
-                <button key={o.value} onClick={() => setEventType(o.value)} className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${eventType === o.value ? "border-[#72ffd2] bg-[#72ffd2] text-[#031118]" : "border-[#18473a] bg-[#07121a] text-[#91bdb0] hover:bg-[#102129]"}`}>{o.label}</button>
+                <button
+                  key={o.value}
+                  onClick={() => setEventType(o.value)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                    eventType === o.value
+                      ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+                  }`}
+                >
+                  {o.label}
+                </button>
               ))}
             </div>
           </div>
         </div>
 
         {/* Metrics row */}
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
           <MetricCard label="Classification Accuracy" value={formatPct(quality?.classification_accuracy)} hint="Approve / Reject agreement proxy" />
-          <MetricCard label="NLP Latency p95" value={quality?.nlp_latency_p95_seconds != null ? `${quality.nlp_latency_p95_seconds.toFixed(1)}s` : "-"} hint="Article create to NLP processed" />
+          <MetricCard label="NLP Latency P95" value={quality?.nlp_latency_p95_seconds != null ? `${quality.nlp_latency_p95_seconds.toFixed(1)}s` : "-"} hint="Article create to NLP processed" />
           <MetricCard label="Review Backlog" value={`${quality?.review_queue_backlog ?? 0}`} hint="Pending human review events" />
         </div>
 
         {/* Globe + Sidebar */}
-        <div className="grid gap-5 2xl:grid-cols-[1.7fr_0.95fr]">
-          <div className="rounded-[30px] border border-[#11352b] bg-[linear-gradient(180deg,rgba(7,18,26,0.96),rgba(4,9,14,0.96))] p-4">
+        <div className="grid gap-6 2xl:grid-cols-[1.7fr_0.95fr]">
+          <div className="rounded-[30px] border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#79ffd7]">World Event Globe</p>
-                <p className="mt-1 text-xs text-[#4d7669]">{isLoading ? "Loading heatmap intelligence..." : `${plotted.length} mapped countries with mapcn overlays`}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-900">World Event Globe</p>
+                <p className="mt-0.5 text-xs text-gray-500">{isLoading ? "Loading heatmap intelligence..." : `${plotted.length} mapped countries with mapcn overlays`}</p>
               </div>
-              <Radar className="h-4 w-4 text-[#79ffd7]" />
+              <Radar className="h-4 w-4 text-emerald-600" />
             </div>
             <MapGlobe points={plotted} mapRef={mapInstance} onMapRef={setMapInstance} />
           </div>
@@ -349,54 +378,89 @@ export default function MacroMapPage() {
           {/* Sidebar */}
           <div className="space-y-4">
             <SidebarCard>
-              <SidebarTitle icon={AlertTriangle} label="Conflict Hotspots" color="#ffd1db" />
+              <SidebarTitle icon={AlertTriangle} label={hotspotTitle} color="#e11d48" />
               <div className="space-y-2">
-                {topConflict.length === 0 ? <p className="text-sm text-[#6f988b]">No conflict-heavy hotspots in this time window.</p> : topConflict.map((r) => (
-                  <button key={r.country} onClick={() => flyTo([r.longitude, r.latitude], 2.5)} className="block w-full rounded-xl border border-[#17372f] bg-[#08161d] px-3 py-2 text-left transition-colors hover:bg-[#0c1d26]">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-semibold text-[#f2fffb]">{r.country}</p>
-                      <p className="text-xs text-[#ff9bb6]">{formatPct(r.conflict_share)}</p>
-                    </div>
-                    <p className="mt-1 text-xs text-[#6f988b]">{r.event_count} events · sev {formatNum(r.avg_severity, 2)} · conf {formatNum(r.avg_confidence, 2)}</p>
-                  </button>
-                ))}
+                {topConflict.length === 0 ? (
+                  <p className="text-xs text-gray-400">No hotspots in this time window.</p>
+                ) : (
+                  topConflict.map((r) => (
+                    <button
+                      key={r.country}
+                      onClick={() => flyTo([r.longitude, r.latitude], 2.5)}
+                      className="block w-full rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200 px-3.5 py-2.5 text-left transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-bold text-gray-900">{r.country}</p>
+                        <p className="text-xs font-bold text-rose-600">
+                          {r.conflict_share > 0 ? formatPct(r.conflict_share) : `${r.event_count} events`}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {r.event_count} events · sev {formatNum(r.avg_severity, 2)} · conf {formatNum(r.avg_confidence, 2)}
+                      </p>
+                    </button>
+                  ))
+                )}
               </div>
             </SidebarCard>
 
             <SidebarCard>
-              <SidebarTitle icon={Globe2} label="Country Highlights" color="#79ffd7" />
+              <SidebarTitle icon={Globe2} label="Country Highlights" color="#059669" />
               <div className="space-y-2">
-                {topCountries.length === 0 ? <p className="text-sm text-[#6f988b]">No country highlights yet.</p> : topCountries.map((r) => (
-                  <button key={r.country} onClick={() => flyTo([r.longitude, r.latitude], 2.1)} className="block w-full rounded-xl border border-[#17372f] bg-[#08161d] px-3 py-2 text-left transition-colors hover:bg-[#0c1d26]">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-semibold text-[#f2fffb]">{r.country}</p>
-                      <p className="text-xs text-[#79ffd7]">{r.event_count} events</p>
-                    </div>
-                    <p className="mt-1 text-xs text-[#6f988b]">sev {formatNum(r.avg_severity, 2)} · conf {formatNum(r.avg_confidence, 2)} · conflict {formatPct(r.conflict_share)}</p>
-                  </button>
-                ))}
+                {topCountries.length === 0 ? (
+                  <p className="text-xs text-gray-400">No country highlights yet.</p>
+                ) : (
+                  topCountries.map((r) => (
+                    <button
+                      key={r.country}
+                      onClick={() => flyTo([r.longitude, r.latitude], 2.1)}
+                      className="block w-full rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200 px-3.5 py-2.5 text-left transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-bold text-gray-900">{r.country}</p>
+                        <p className="text-xs font-bold text-emerald-600">{r.event_count} events</p>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        sev {formatNum(r.avg_severity, 2)} · conf {formatNum(r.avg_confidence, 2)} · conflict {formatPct(r.conflict_share)}
+                      </p>
+                    </button>
+                  ))
+                )}
               </div>
             </SidebarCard>
 
             <SidebarCard>
-              <SidebarTitle icon={Anchor} label="Maritime Watch" color="#ffe8b5" />
+              <SidebarTitle icon={Anchor} label="Maritime Watch" color="#d97706" />
               <div className="space-y-2">
                 {maritimeRows.map((r) => (
-                  <button key={r.id} onClick={() => flyTo([...r.coordinates] as [number, number], 3.4)} className={`block w-full rounded-xl border px-3 py-2 text-left transition-colors ${r.active ? "border-[#5e4b16] bg-[#17140a] hover:bg-[#1d190d]" : "border-[#17372f] bg-[#08161d] hover:bg-[#0c1d26]"}`}>
+                  <button
+                    key={r.id}
+                    onClick={() => flyTo([...r.coordinates] as [number, number], 3.4)}
+                    className={`block w-full rounded-xl border px-3.5 py-2.5 text-left transition-all ${
+                      r.active
+                        ? "border-amber-200 bg-amber-50/70 hover:bg-amber-100/70"
+                        : "border-gray-100 bg-gray-50 hover:bg-gray-100"
+                    }`}
+                  >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-[#f2fffb]">{r.name}</p>
-                      <p className={`text-[10px] uppercase tracking-[0.2em] ${r.active ? "text-[#ffd782]" : "text-[#5f776d]"}`}>{r.active ? "Active" : "Monitor"}</p>
+                      <p className="text-sm font-bold text-gray-900">{r.name}</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wider ${r.active ? "text-amber-700" : "text-gray-400"}`}>
+                        {r.active ? "Active" : "Monitor"}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-[#8aa397]">{r.note}</p>
+                    <p className="mt-1 text-xs text-gray-500">{r.note}</p>
                   </button>
                 ))}
               </div>
             </SidebarCard>
 
             <SidebarCard>
-              <SidebarTitle icon={Waves} label="Quality Signals" color="#cde7ff" />
-              <p className="text-xs text-[#6f988b]">Auto-approved rate: {formatPct(quality?.auto_approved_rate)} · Asset mapping coverage: {formatPct(quality?.asset_mapping_coverage)}</p>
-              <p className="mt-2 text-xs text-[#6f988b]">Ingestion freshness: {quality?.news_ingestion_freshness_minutes != null ? `${quality.news_ingestion_freshness_minutes.toFixed(1)} min` : "-"}</p>
+              <SidebarTitle icon={Waves} label="Quality Signals" color="#2563eb" />
+              <div className="space-y-1 text-xs text-gray-600">
+                <p>Auto-approved rate: <span className="font-bold text-gray-800">{formatPct(quality?.auto_approved_rate)}</span></p>
+                <p>Asset mapping coverage: <span className="font-bold text-gray-800">{formatPct(quality?.asset_mapping_coverage)}</span></p>
+                <p>Ingestion freshness: <span className="font-bold text-gray-800">{quality?.news_ingestion_freshness_minutes != null ? `${quality.news_ingestion_freshness_minutes.toFixed(1)} min` : "-"}</span></p>
+              </div>
             </SidebarCard>
           </div>
         </div>
@@ -408,10 +472,10 @@ export default function MacroMapPage() {
 /* ─── MetricCard ──────────────────────────────────────────────────────────── */
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-[22px] border border-[#11352b] bg-[#07121a] px-4 py-3 shadow-[0_16px_36px_rgba(0,0,0,0.28)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#4d7669]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-[#e6fff8]">{value}</p>
-      <p className="mt-1 text-xs text-[#6f988b]">{hint}</p>
+    <div className="rounded-[22px] border border-gray-200 bg-white px-5 py-4 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="mt-1 text-2xl font-black text-gray-900 tabular-nums">{value}</p>
+      <p className="mt-1 text-xs text-gray-500">{hint}</p>
     </div>
   );
 }

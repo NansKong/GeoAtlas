@@ -1,15 +1,74 @@
-# Environments
+# ==============================================================================
+# Security & Credentials (API Keys, Tokens, Environment Files, Private Keys)
+# ==============================================================================
+# Environment variable files containing API keys and secrets
 .env
 .env.*
 !.env.example
+!.env*.example
+*.env
+*.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.override
+.env.secrets
 
-# Python
+# Credentials, secrets, and API key files
+secrets.json
+secrets.yaml
+secrets.yml
+secrets/
+credentials
+credentials.json
+credentials.ini
+client_secret*.json
+service_account*.json
+service_account.json
+google-services.json
+firebase-admin*.json
+*key.json
+*token.json
+token.pkl
+tokens.json
+*.api_key
+api_key*
+jwt_secret*
+
+# Security Certificates, SSL, and Private Keys
+*.pem
+*.key
+*.crt
+*.pub
+*.cer
+*.der
+*.pfx
+*.p12
+
+# SSH Keys
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+
+# Cloud CLI Credentials & Configuration
+.aws/
+.gcp/
+.azure/
+.kube/
+
+# ==============================================================================
+# Python & Virtual Environments
+# ==============================================================================
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
+
+# Distribution / packaging
 build/
 develop-eggs/
 dist/
@@ -28,31 +87,112 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Virtual environments
+# Virtual Environments
 atlas/
 venv/
 .venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
-# Next.js / Node.js
+# Pytest / Coverage / Linting Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+*.pyo
+
+# ==============================================================================
+# Node.js & Next.js
+# ==============================================================================
+# Dependencies
 node_modules/
+
+# Next.js build output & cache
 .next/
 out/
+
+# Build outputs & caches
 build/
 .npm
+.yarn/
 .eslintcache
 .stylelintcache
 tsconfig.tsbuildinfo
+.turbo/
 
-# Celery
+# Node logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================================================================
+# Celery & Asynchronous Tasks
+# ==============================================================================
 celerybeat-schedule*
 celerybeat.pid
+*.pid
 
-# Logs and databases
+# ==============================================================================
+# Databases, Dumps, Backups & Logs
+# ==============================================================================
 *.log
+*.sqlite
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
+*.dump
+*.sql
+*.bak
+
+# ==============================================================================
+# Large Data Files, Datasets & ML Models
+# ==============================================================================
+backend/data/
+backend/tmp/
+brain/
+downloads/
+*.jsonl
+*.csv
+*.xlsx
+*.parquet
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.feather
+*.arrow
+
+# ML Model Weights / Checkpoints
+*.bin
+*.onnx
+*.pt
+*.pth
+*.safetensors
+*.model
+*.ckpt
+
+# ==============================================================================
+# IDEs, Text Editors & OS Files
+# ==============================================================================
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
 
 # OS generated files
 .DS_Store
@@ -62,19 +202,28 @@ celerybeat.pid
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Project specific temporary folders
-backend/tmp/
-brain/
-downloads/
-*.jsonl
+# Containers & Infrastructure
+.docker/
+.terraform/
+*.tfstate*
 
-# Data files
-backend/data/
-*.csv
-*.xlsx
-*.parquet
-*.pkl
-*.h5
-*.feather
-*.arrow
+# ==============================================================================
+# Documents, PDFs & Non-essential Markdown Files
+# ==============================================================================
+# Ignore all PDF and office document files
+*.pdf
+*.docx
+*.doc
+*.pptx
+*.epub
+PRD/
+
+# Ignore non-essential markdown files (only keep required repo documentation)
+*.md
+!README.md
+!SOURCE_OF_TRUTH.md
+!requirements.md
+!ops/**/*.md
+

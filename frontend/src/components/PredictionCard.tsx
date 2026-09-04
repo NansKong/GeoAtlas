@@ -168,7 +168,7 @@ export function PredictionCard({ prediction }: { prediction: PredictionItem }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <Metric label="Range" value={formatPct(prediction.predicted_change_pct)} />
+        <Metric label="Est. 24h Move" value={formatPct(prediction.predicted_change_pct)} />
         <Metric
           label="Confidence"
           value={
@@ -179,6 +179,7 @@ export function PredictionCard({ prediction }: { prediction: PredictionItem }) {
         />
         <Metric label="Horizon" value={prediction.prediction_horizon} />
       </div>
+
 
       {prediction.outcome !== "pending" && (
         <ComparisonBar predicted={prediction.predicted_change_pct} actual={prediction.actual_change_pct} />

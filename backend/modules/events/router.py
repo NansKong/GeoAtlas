@@ -8,6 +8,7 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.text import strip_html
 from modules.events.models import (
     Event,
     EventArticle,
@@ -254,13 +255,22 @@ def _apply_review_updates(event: Event, payload: ReviewDecisionIn) -> None:
         event.confidence_score = payload.confidence_score
 
 
+def _article_plain_text(article: NewsArticle) -> str:
+    """Title + body with any leftover feed markup removed.
+
+    Rows ingested before markup was stripped at write time still hold raw HTML,
+    so every read path normalizes defensively instead of trusting the column.
+    """
+    return f"{strip_html(article.title) or ''}\n{strip_html(article.content) or ''}"
+
+
 def _infer_news_category(article: NewsArticle) -> tuple[str, Optional[str]]:
-    text = f"{article.title or ''}\n{article.content or ''}".lower()
+    text = _article_plain_text(article).lower()
     best_category = "general"
     best_hits = 0
 
     for category, keywords in NEWS_CATEGORY_KEYWORDS.items():
-        hits = sum(1 for keyword in keywords if keyword in text)
+        hits = sum(1 for keyword in keywords if re.search(rf"\b{re.escape(keyword)}\b", text))
         if hits > best_hits:
             best_category = category
             best_hits = hits
@@ -269,18 +279,36 @@ def _infer_news_category(article: NewsArticle) -> tuple[str, Optional[str]]:
     return best_category, matched_event_type
 
 
+def _comparison_key(text: str) -> str:
+    """Letters and digits only, so punctuation differences don't defeat a match."""
+    return re.sub(r"[^a-z0-9]+", "", text.casefold())
+
+
+def _snippet_for(title: str, content: Optional[str]) -> Optional[str]:
+    normalized = strip_html(content)
+    if not normalized:
+        return None
+
+    # A Google News summary is just the headline re-wrapped in an anchor plus the
+    # outlet name. Stripped of markup it merely echoes the title, so drop it
+    # rather than print the same sentence twice on the card.
+    title_key = _comparison_key(strip_html(title) or "")
+    snippet_key = _comparison_key(normalized)
+    if title_key and snippet_key.startswith(title_key):
+        if len(snippet_key) - len(title_key) < 40:
+            return None
+
+    if len(normalized) <= 220:
+        return normalized
+    return f"{normalized[:220].rstrip()}..."
+
+
 def _to_news_article_out(article: NewsArticle) -> NewsArticleOut:
     category, matched_event_type = _infer_news_category(article)
-    snippet = None
-    if article.content:
-        normalized = " ".join(article.content.split())
-        snippet = normalized[:220].rstrip()
-        if len(normalized) > 220:
-            snippet = f"{snippet}..."
 
     return NewsArticleOut(
         id=article.id,
-        title=article.title,
+        title=strip_html(article.title) or article.title,
         source=article.source,
         url=article.url,
         published_at=article.published_at,
@@ -290,7 +318,7 @@ def _to_news_article_out(article: NewsArticle) -> NewsArticleOut:
         relevance_score=article.relevance_score,
         relevance_label=article.relevance_label,
         nlp_processed_at=article.nlp_processed_at,
-        snippet=snippet,
+        snippet=_snippet_for(article.title, article.content),
         category=category,
         matched_event_type=matched_event_type,
         created_at=article.created_at,
@@ -328,7 +356,7 @@ def _extract_countries_from_text(text: str) -> list[str]:
 
 def _estimate_news_severity(article: NewsArticle, category: str) -> float:
     base = NEWS_CATEGORY_SEVERITY.get(category, NEWS_CATEGORY_SEVERITY["general"])
-    text = f"{article.title or ''}\n{article.content or ''}".lower()
+    text = _article_plain_text(article).lower()
     intensity = 0.0
     if any(token in text for token in ("war", "missile", "airstrike", "attack", "bombardment", "killed", "kills")):
         intensity += 0.7
@@ -351,7 +379,7 @@ def _news_heatmap_points(
         if requested_event_type and matched_event_type != requested_event_type.value:
             continue
 
-        countries = _extract_countries_from_text(f"{article.title or ''}\n{article.content or ''}")
+        countries = _extract_countries_from_text(_article_plain_text(article))
         if not countries:
             continue
 

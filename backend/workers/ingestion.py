@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 from core.config import settings
+from core.text import clean_feed_text, strip_html
 from modules.market.models import Asset
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,13 @@ def _make_hash(title: str, description: str) -> str:
 
 
 def _store_articles(articles: list[dict]) -> int:
-    """Synchronously store articles using a sync DB session (Celery is sync)."""
+    """Synchronously store articles using a sync DB session (Celery is sync).
+
+    Markup is stripped here rather than in each fetcher so that no provider can
+    leak raw HTML into the DB. `content_hash` is deliberately left as the caller
+    computed it (from the raw payload) so cleaning does not re-key existing rows
+    and re-ingest everything currently sitting in the feed windows.
+    """
     from modules.events.models import NewsArticle
 
     engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
@@ -56,9 +63,13 @@ def _store_articles(articles: list[dict]) -> int:
             ).scalar_one_or_none()
             if existing:
                 continue
+            # Fall back to the raw title if the entry was nothing but markup.
+            # Truncate after stripping so a cut never lands mid-tag.
+            title = (clean_feed_text(article["title"]) or article["title"])[:500]
+            content = clean_feed_text(article.get("content"))
             news = NewsArticle(
-                title=article["title"],
-                content=article.get("content"),
+                title=title,
+                content=content[:5000] if content else None,
                 source=article["source"],
                 url=article["url"],
                 published_at=article.get("published_at"),
@@ -682,15 +693,16 @@ def fetch_rss(self, feed_url: str):
         for entry in feed.entries[:50]:
             title = entry.get("title") or ""
             summary = entry.get("summary") or ""
-            if not title:
+            # Entries that are pure markup carry no headline worth storing.
+            if not strip_html(title):
                 continue
             published = None
             if hasattr(entry, "published_parsed") and entry.published_parsed:
                 import time
                 published = datetime.fromtimestamp(time.mktime(entry.published_parsed), tz=timezone.utc)
             articles.append({
-                "title": title[:500],
-                "content": summary[:5000] if summary else None,
+                "title": title,
+                "content": summary or None,
                 "source": source_name[:100],
                 "url": entry.get("link", ""),
                 "published_at": published,
