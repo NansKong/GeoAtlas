@@ -31,11 +31,16 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
 
     @property
     def cors_origins(self) -> List[str]:
-        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
+        origins = [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+        if self.APP_ENV == "development":
+            for port in [3000, 3001, 3002, 8000, 8001]:
+                origins.append(f"http://localhost:{port}")
+                origins.append(f"http://127.0.0.1:{port}")
+        return list(set(origins))
 
     # News APIs
     NEWS_API_KEY: str = ""

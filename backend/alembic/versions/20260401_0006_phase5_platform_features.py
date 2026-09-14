@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("pins", sa.Column("position", sa.Integer(), nullable=False, server_default="0"))
+    op.execute("ALTER TABLE pins ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0 NOT NULL;")
     op.execute(
         """
         WITH ranked AS (
@@ -34,10 +34,10 @@ def upgrade() -> None:
     )
     op.alter_column("pins", "position", server_default=None)
 
-    op.add_column("users", sa.Column("stripe_customer_id", sa.String(length=255), nullable=True))
-    op.add_column("users", sa.Column("stripe_subscription_id", sa.String(length=255), nullable=True))
-    op.create_index("ix_users_stripe_customer_id", "users", ["stripe_customer_id"], unique=False)
-    op.create_index("ix_users_stripe_subscription_id", "users", ["stripe_subscription_id"], unique=False)
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);")
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255);")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_users_stripe_customer_id ON users (stripe_customer_id);")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_users_stripe_subscription_id ON users (stripe_subscription_id);")
 
     op.create_table(
         "institutional_api_keys",

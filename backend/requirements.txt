@@ -54,3 +54,6 @@ git+https://github.com/amazon-science/chronos-forecasting.git
 # Dev
 pytest==8.3.4
 pytest-asyncio==0.24.0
+
+# Hugging Face Space UI
+gradio

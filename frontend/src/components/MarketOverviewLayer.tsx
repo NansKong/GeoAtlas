@@ -76,8 +76,9 @@ export function MarketOverviewLayer() {
     if (!cleanStr) return;
     setIsSearchingLive(true);
     try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
       const res = await fetch(
-        `http://localhost:8000/api/v1/market/quote/${encodeURIComponent(cleanStr)}?refresh=true`
+        `${baseUrl}/market/quote/${encodeURIComponent(cleanStr)}?refresh=true`
       );
       if (res.ok) {
         const data = await res.json();
@@ -98,7 +99,8 @@ export function MarketOverviewLayer() {
   const { data, isLoading } = useQuery<SnapshotPayload>({
     queryKey: ["market-snapshot"],
     queryFn: async () => {
-      const res = await fetch("http://localhost:8000/api/v1/market/snapshot");
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+      const res = await fetch(`${baseUrl}/market/snapshot`);
       if (!res.ok) throw new Error("Failed to fetch snapshot");
       const d = await res.json();
       return d as SnapshotPayload;
