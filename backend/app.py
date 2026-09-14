@@ -3,6 +3,17 @@ import uvicorn
 import gradio as gr
 from main import app
 
+try:
+    import spaces
+
+    @spaces.GPU
+    def _zero_gpu_sentinel():
+        """Satisfies Hugging Face ZeroGPU startup check."""
+        return True
+except Exception:
+    pass
+
+
 # Create a clean status dashboard for the Hugging Face Space UI
 with gr.Blocks(title="GeoAtlas Intelligence API") as demo:
     gr.Markdown(
