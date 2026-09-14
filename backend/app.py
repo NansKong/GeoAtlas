@@ -1,18 +1,14 @@
+import spaces
+
+@spaces.GPU
+def _zero_gpu_init():
+    """Satisfies Hugging Face ZeroGPU runtime requirement."""
+    return "ZeroGPU Online"
+
 import os
 import uvicorn
 import gradio as gr
 from main import app
-
-try:
-    import spaces
-
-    @spaces.GPU
-    def _zero_gpu_sentinel():
-        """Satisfies Hugging Face ZeroGPU startup check."""
-        return True
-except Exception:
-    pass
-
 
 # Create a clean status dashboard for the Hugging Face Space UI
 with gr.Blocks(title="GeoAtlas Intelligence API") as demo:
@@ -28,6 +24,9 @@ with gr.Blocks(title="GeoAtlas Intelligence API") as demo:
         * ⚡ **API Base Route:** `/api/v1`
         """
     )
+    _gpu_btn = gr.Button("Warmup GPU", visible=False)
+    _gpu_btn.click(fn=_zero_gpu_init)
+    demo.load(fn=_zero_gpu_init)
 
 # Mount Gradio at root so Hugging Face Space displays the dashboard,
 # while FastAPI handles all API routes (/api/v1, /docs, /health, /ws)
