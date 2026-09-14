@@ -1,12 +1,18 @@
 # Ignore Python backend entirely (hosted on Hugging Face Spaces)
 backend/
 
-# Ignore heavy data files
-**/data/raw/
-**/data/ACLED/
-**/data/processed/
+# Ignore ops / infra configs
+ops/
+atlas/
 
-# Ignore local env and cache
-frontend/.env.local
+# Ignore frontend build artifacts and deps
 frontend/node_modules/
 frontend/.next/
+frontend/.env.local
+frontend/tsconfig.tsbuildinfo
+
+# Ignore all root-level node_modules
+node_modules/
+
+# Ignore heavy training data
+**/data/
