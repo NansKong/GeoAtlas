@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { MapPin, Plus } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { safeDistanceToNow } from "@/lib/dateUtils";
 
 interface AffectedAsset {
   ticker: string;
@@ -46,7 +46,7 @@ export function EventPin({ event, onSave }: EventPinProps) {
   const typeStyle = EVENT_TYPE_COLORS[event.event_type] ?? { bg: "#f3f4f6", text: "#374151" };
   const typeLabel = event.event_type.replace(/_/g, " ");
   const timeAgo = event.published_at
-    ? formatDistanceToNow(new Date(event.published_at), { addSuffix: true })
+    ? safeDistanceToNow(event.published_at)
     : null;
   const affectedAssets = event.affected_assets ?? [];
   const tags = event.tags ?? [];

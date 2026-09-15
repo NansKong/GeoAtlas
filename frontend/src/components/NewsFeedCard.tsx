@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
+import { safeDistanceToNow } from "@/lib/dateUtils";
 import { ExternalLink, Newspaper } from "lucide-react";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -29,7 +29,7 @@ interface NewsFeedCardProps {
 export function NewsFeedCard({ article }: NewsFeedCardProps) {
   const categoryTone = CATEGORY_STYLES[article.category] ?? CATEGORY_STYLES.general;
   const timeAgo = article.published_at
-    ? formatDistanceToNow(new Date(article.published_at), { addSuffix: true })
+    ? safeDistanceToNow(article.published_at)
     : null;
 
   return (

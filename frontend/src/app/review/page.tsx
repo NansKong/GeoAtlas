@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, FileText, Globe2, ShieldAlert, XCircle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { safeDistanceToNow } from "@/lib/dateUtils";
 
 import {
   approveReviewEvent,
@@ -200,7 +200,7 @@ export default function ReviewQueuePage() {
               <div className="mt-3 flex items-center gap-2 text-xs opacity-75">
                 {item.country && <span>{item.country}</span>}
                 {item.published_at && (
-                  <span>{formatDistanceToNow(new Date(item.published_at), { addSuffix: true })}</span>
+                  <span>{safeDistanceToNow(item.published_at)}</span>
                 )}
               </div>
             </button>
@@ -359,7 +359,7 @@ export default function ReviewQueuePage() {
                       <p className="mt-1 text-xs text-gray-500">
                         {article.source}
                         {article.published_at &&
-                          ` · ${formatDistanceToNow(new Date(article.published_at), { addSuffix: true })}`}
+                          ` · ${safeDistanceToNow(article.published_at)}`}
                       </p>
                     </a>
                   ))}

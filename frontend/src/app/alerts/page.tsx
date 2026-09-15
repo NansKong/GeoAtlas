@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Plus, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { safeDistanceToNow } from "@/lib/dateUtils";
 
 import {
   createAlert,
@@ -285,7 +285,7 @@ function AlertRow({
             {alert.threshold !== undefined ? ` - threshold ${alert.threshold}` : ""}
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            Created {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}
+            Created {safeDistanceToNow(alert.created_at)}
           </p>
         </div>
         <div className="flex items-center gap-2">

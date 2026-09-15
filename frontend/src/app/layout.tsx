@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: "GeoAtlas — Geopolitical Intelligence Platform",
   description:
     "Real-time geopolitical event intelligence mapped to financial markets and AI predictions.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

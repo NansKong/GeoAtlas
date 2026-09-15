@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { safeDate, safeDistanceToNow } from "@/lib/dateUtils";
 import { Activity, Search, TrendingDown, TrendingUp, Wifi, WifiOff } from "lucide-react";
 
 import {
@@ -18,7 +18,11 @@ import {
 const QUICK_TICKERS = ["NVDA", "AMD", "TSM", "SPY", "QQQ", "XOM", "BTC"];
 
 function toAscending(points: OHLCVPoint[]): OHLCVPoint[] {
-  return [...points].sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp));
+  return [...points].sort((a, b) => {
+    const ta = safeDate(a.timestamp)?.getTime() ?? 0;
+    const tb = safeDate(b.timestamp)?.getTime() ?? 0;
+    return ta - tb;
+  });
 }
 
 function compactNumber(value?: number): string {
@@ -27,12 +31,14 @@ function compactNumber(value?: number): string {
 }
 
 function mergeLivePoint(points: OHLCVPoint[], quote?: MarketQuote | null): OHLCVPoint[] {
-  if (!points.length || !quote) return points;
+  if (!points.length || !quote || typeof quote.price !== "number" || isNaN(quote.price)) return points;
   const ordered = toAscending(points);
-  const quoteTs = +new Date(quote.as_of);
+  const quoteDate = safeDate(quote.as_of);
+  if (!quoteDate) return ordered;
+  const quoteTs = quoteDate.getTime();
   const lastIdx = ordered.length - 1;
-  const lastTs = +new Date(ordered[lastIdx].timestamp);
-  if (Number.isNaN(quoteTs)) return ordered;
+  const lastDate = safeDate(ordered[lastIdx]?.timestamp);
+  const lastTs = lastDate ? lastDate.getTime() : 0;
   if (quoteTs <= lastTs + 60_000) {
     return [...ordered.slice(0, lastIdx), { ...ordered[lastIdx], close: quote.price }];
   }
@@ -43,7 +49,11 @@ function mergeLivePoint(points: OHLCVPoint[], quote?: MarketQuote | null): OHLCV
 function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  if (!points.length) {
+  const ordered = toAscending(points).filter(
+    (p) => p && typeof p.close === "number" && !isNaN(p.close)
+  );
+
+  if (!ordered.length) {
     return (
       <div className="h-full min-h-[240px] rounded-2xl flex items-center justify-center text-sm text-gray-400 bg-white">
         No chart data available
@@ -51,7 +61,6 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
     );
   }
 
-  const ordered = toAscending(points);
   const closes = ordered.map((p) => p.close);
   const isUp = closes[closes.length - 1] >= closes[0];
 
@@ -97,8 +106,8 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
   const xLabels = [0, 0.25, 0.5, 0.75, 1].map((frac) => {
     const idx = Math.round(frac * (ordered.length - 1));
     const ts = ordered[idx]?.timestamp;
-    const d = ts ? new Date(ts) : null;
-    const label = d && !isNaN(+d)
+    const d = safeDate(ts);
+    const label = d
       ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : "";
     return { x: toX(idx), label };
@@ -363,7 +372,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
                 <div className="mt-4 space-y-1 text-xs text-gray-400">
                   <p>Source: <span className="text-gray-600 font-medium">{activeQuote.source}</span></p>
                   <p>Cache: <span className="text-gray-600 font-medium">{activeQuote.cache_hit ? "hit" : "miss"}</span></p>
-                  <p>Updated: <span className="text-gray-600 font-medium">{formatDistanceToNow(new Date(activeQuote.as_of), { addSuffix: true })}</span></p>
+                  <p>Updated: <span className="text-gray-600 font-medium">{safeDistanceToNow(activeQuote.as_of)}</span></p>
                 </div>
               </>
             )}

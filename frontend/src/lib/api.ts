@@ -788,3 +788,22 @@ export const getMarketWsUrl = (tickers: string[] = []): string => {
   const query = tickers.length ? `?tickers=${encodeURIComponent(tickers.join(","))}` : "";
   return `${wsBase}/market/ws${query}`;
 };
+
+export interface AuthTokenResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
+export const loginUser = async (email: string, password: string): Promise<AuthTokenResponse> => {
+  const { data } = await api.post<AuthTokenResponse>("/auth/login", { email, password });
+  if (typeof window !== "undefined") {
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+  }
+  return data;
+};
+
+export const registerUser = async (email: string, username: string, password: string): Promise<UserProfile> => {
+  const { data } = await api.post<UserProfile>("/auth/register", { email, username, password });
+  return data;
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
+import { safeDate, safeDistanceToNow } from "@/lib/dateUtils";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -112,10 +112,13 @@ function ComparisonBar({ predicted, actual }: { predicted?: number | null; actua
 }
 
 function TimelineProgress({ predictedAt, resolveAt, resolvedAt }: { predictedAt: string; resolveAt?: string | null; resolvedAt?: string | null }) {
-  const start = new Date(predictedAt).getTime();
-  const end = resolveAt ? new Date(resolveAt).getTime() : start + 24 * 60 * 60 * 1000;
-  const now = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
-  const progress = Math.min(Math.max((now - start) / (end - start), 0), 1) * 100;
+  const startDate = safeDate(predictedAt);
+  const start = startDate ? startDate.getTime() : Date.now() - 24 * 60 * 60 * 1000;
+  const endDate = safeDate(resolveAt);
+  const end = endDate ? endDate.getTime() : start + 24 * 60 * 60 * 1000;
+  const nowDate = safeDate(resolvedAt);
+  const now = nowDate ? nowDate.getTime() : Date.now();
+  const progress = Math.min(Math.max((now - start) / Math.max(end - start, 1), 0), 1) * 100;
   const isResolved = !!resolvedAt;
 
   return (
@@ -137,9 +140,9 @@ function TimelineProgress({ predictedAt, resolveAt, resolvedAt }: { predictedAt:
 export function PredictionCard({ prediction }: { prediction: PredictionItem }) {
   const tone = directionTone(prediction.predicted_direction);
   const outcome = outcomeBadge(prediction.outcome);
-  const predictedAgo = formatDistanceToNow(new Date(prediction.predicted_at), { addSuffix: true });
+  const predictedAgo = safeDistanceToNow(prediction.predicted_at);
   const resolvedAgo = prediction.resolved_at
-    ? formatDistanceToNow(new Date(prediction.resolved_at), { addSuffix: true })
+    ? safeDistanceToNow(prediction.resolved_at)
     : null;
 
   return (

@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { MarketPanel } from "@/components/MarketPanel";
-import { formatDistanceStrict, differenceInSeconds } from "date-fns";
+import { safeDifferenceInSeconds, safeDistanceStrict } from "@/lib/dateUtils";
 import { api } from "@/lib/api";
 
 interface SnapshotItem {
@@ -159,8 +159,7 @@ export function MarketOverviewLayer() {
   });
 
   // Staleness calculation
-  const lastUpdatedRaw = data?.last_updated ? new Date(data.last_updated) : null;
-  const stalenessDocs = lastUpdatedRaw ? differenceInSeconds(now, lastUpdatedRaw) : 0;
+  const stalenessDocs = safeDifferenceInSeconds(now, data?.last_updated);
 
   let stalenessColor = "text-gray-500";
   let StalenessIcon = Clock;
@@ -254,7 +253,7 @@ export function MarketOverviewLayer() {
             <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
               <StalenessIcon className={`w-3.5 h-3.5 ${stalenessColor}`} />
               <span className={stalenessColor}>
-                {lastUpdatedRaw ? `Updated ${formatDistanceStrict(lastUpdatedRaw, now)} ago` : "Connecting..."}
+                {data?.last_updated ? `Updated ${safeDistanceStrict(data.last_updated, now)} ago` : "Connecting..."}
               </span>
             </div>
           </div>

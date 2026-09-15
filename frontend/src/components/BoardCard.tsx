@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { LayoutGrid, Lock, Globe } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { safeDistanceToNow } from "@/lib/dateUtils";
 import { Board } from "@/lib/api";
 
 interface BoardCardProps {
@@ -9,7 +9,7 @@ interface BoardCardProps {
 }
 
 export function BoardCard({ board }: BoardCardProps) {
-  const timeAgo = formatDistanceToNow(new Date(board.created_at), { addSuffix: true });
+  const timeAgo = safeDistanceToNow(board.created_at);
 
   return (
     <Link href={`/boards/${board.id}`} className="block pin-card group">

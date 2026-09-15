@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Plus, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { safeDistanceToNow } from "@/lib/dateUtils";
 
 import {
   createWatchlist,
@@ -156,7 +156,7 @@ function WatchlistRow({
               <p className="mt-1 text-sm text-gray-700">{latestImpact.event_title}</p>
               {latestImpact.published_at ? (
                 <p className="mt-1 text-xs text-gray-400">
-                  {formatDistanceToNow(new Date(latestImpact.published_at), { addSuffix: true })}
+                  {safeDistanceToNow(latestImpact.published_at)}
                 </p>
               ) : null}
             </div>
