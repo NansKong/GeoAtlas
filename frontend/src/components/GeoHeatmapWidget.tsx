@@ -184,16 +184,16 @@ export function GeoHeatmapWidget() {
   });
 
   const hotspots = useMemo(() => {
-    if (!heatmap) return [];
+    if (!Array.isArray(heatmap)) return [];
     return heatmap
       .filter(
         (p): p is HotspotPoint =>
-          p.latitude !== undefined && p.longitude !== undefined,
+          p !== null && typeof p === "object" && p.latitude !== undefined && p.longitude !== undefined,
       )
       .sort(
         (a, b) =>
-          b.event_count * b.conflict_share -
-          a.event_count * a.conflict_share,
+          (b.event_count || 0) * (b.conflict_share || 0) -
+          (a.event_count || 0) * (a.conflict_share || 0),
       );
   }, [heatmap]);
 

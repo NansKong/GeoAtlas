@@ -43,7 +43,7 @@ const CLASS_COLORS: Record<AssetClass, { bg: string; border: string; text: strin
 };
 
 function findCorrelations(events: EventListItem[] | undefined) {
-  if (!events || events.length === 0) return [];
+  if (!Array.isArray(events) || events.length === 0) return [];
 
   const assetMap = new Map<string, Set<string>>();
   for (const event of events) {
@@ -100,7 +100,7 @@ export function CrossAssetCorrelation() {
 
   const snapshotMap = useMemo(() => {
     const map = new Map<string, MarketSnapshotItem>();
-    if (snapshot?.snapshot) {
+    if (snapshot && Array.isArray(snapshot.snapshot)) {
       for (const item of snapshot.snapshot) map.set(item.ticker, item);
     }
     return map;

@@ -287,7 +287,7 @@ export default function MacroMapPage() {
     staleTime: 60_000,
   });
 
-  const plotted = useMemo(() => (heatmap ?? []).filter((p): p is GlobePoint => p.latitude !== undefined && p.longitude !== undefined), [heatmap]);
+  const plotted = useMemo(() => (Array.isArray(heatmap) ? heatmap : []).filter((p): p is GlobePoint => p.latitude !== undefined && p.longitude !== undefined), [heatmap]);
   const topCountries = useMemo(() => [...plotted].sort((a, b) => b.event_count - a.event_count).slice(0, 10), [plotted]);
   const topConflict = useMemo(() => {
     if (eventType && eventType !== "conflict") {

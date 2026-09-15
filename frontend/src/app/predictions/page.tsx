@@ -161,14 +161,14 @@ export default function PredictionsPage() {
   });
 
   const filtered = useMemo(() => {
-    let items = predictions ?? [];
+    let items = Array.isArray(predictions) ? predictions : [];
     if (outcomeFilter) items = items.filter((p) => p.outcome === outcomeFilter);
     if (eventTypeFilter) items = items.filter((p) => p.event_type === eventTypeFilter);
     return items;
   }, [predictions, outcomeFilter, eventTypeFilter]);
 
   const outcomeStats = useMemo(() => {
-    const items = predictions ?? [];
+    const items = Array.isArray(predictions) ? predictions : [];
     return {
       correct: items.filter((p) => p.outcome === "correct").length,
       wrong: items.filter((p) => p.outcome === "wrong").length,

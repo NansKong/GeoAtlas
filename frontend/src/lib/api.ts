@@ -490,6 +490,13 @@ export interface MarketSnapshotPayload {
   source_status: { binance: string; polygon: string };
 }
 
+function toArray<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
+}
+
 // ─── API functions ────────────────────────────────────────────────────────────
 
 export const fetchEvents = async (params?: {
@@ -500,8 +507,12 @@ export const fetchEvents = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<EventListItem[]> => {
-  const { data } = await api.get("/events", { params });
-  return data;
+  try {
+    const { data } = await api.get("/events", { params });
+    return toArray<EventListItem>(data);
+  } catch {
+    return [];
+  }
 };
 
 export const fetchNews = async (params?: {
@@ -510,18 +521,30 @@ export const fetchNews = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<NewsArticle[]> => {
-  const { data } = await api.get("/news", { params });
-  return data;
+  try {
+    const { data } = await api.get("/news", { params });
+    return toArray<NewsArticle>(data);
+  } catch {
+    return [];
+  }
 };
 
 export const fetchMyBoards = async (): Promise<Board[]> => {
-  const { data } = await api.get("/boards");
-  return data;
+  try {
+    const { data } = await api.get("/boards");
+    return toArray<Board>(data);
+  } catch {
+    return [];
+  }
 };
 
 export const fetchPublicBoards = async (limit = 50): Promise<Board[]> => {
-  const { data } = await api.get("/boards/public", { params: { limit } });
-  return data;
+  try {
+    const { data } = await api.get("/boards/public", { params: { limit } });
+    return toArray<Board>(data);
+  } catch {
+    return [];
+  }
 };
 
 export const createBoard = async (payload: BoardCreateInput): Promise<Board> => {
@@ -580,8 +603,12 @@ export const fetchEventHeatmap = async (params?: {
   limit?: number;
   event_type?: string;
 }): Promise<EventHeatmapPoint[]> => {
-  const { data } = await api.get("/events/heatmap", { params });
-  return data;
+  try {
+    const { data } = await api.get("/events/heatmap", { params });
+    return toArray<EventHeatmapPoint>(data);
+  } catch {
+    return [];
+  }
 };
 
 export const fetchQualitySummary = async (): Promise<QualitySummary> => {
@@ -598,8 +625,12 @@ export const fetchPredictions = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<PredictionItem[]> => {
-  const { data } = await api.get("/predictions", { params });
-  return data;
+  try {
+    const { data } = await api.get("/predictions", { params });
+    return toArray<PredictionItem>(data);
+  } catch {
+    return [];
+  }
 };
 
 export const fetchPredictionSummary = async (): Promise<PredictionSummary> => {
