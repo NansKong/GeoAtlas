@@ -183,7 +183,7 @@ export default function HomePage() {
               <div key={i} className="h-72 animate-pulse rounded-[26px] border border-gray-200 bg-gray-100" />
             ))}
           </div>
-        ) : predictions && predictions.length > 0 ? (
+        ) : Array.isArray(predictions) && predictions.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {predictions.map((prediction) => (
               <PredictionCard key={prediction.id} prediction={prediction} />
@@ -229,7 +229,7 @@ export default function HomePage() {
 
         {isNewsLoading ? (
           <ArticleSkeletonGrid />
-        ) : articles && articles.length > 0 ? (
+        ) : Array.isArray(articles) && articles.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {articles.map((article) => (
               <NewsFeedCard key={article.id} article={article} />
@@ -271,7 +271,7 @@ export default function HomePage() {
 
         {isEventsLoading ? (
           <EventSkeletonGrid />
-        ) : events && events.length > 0 ? (
+        ) : Array.isArray(events) && events.length > 0 ? (
           <MasonryGrid>
             {events.map((event) => (
               <EventPin key={event.id} event={event} onSave={setSaveTarget} />
