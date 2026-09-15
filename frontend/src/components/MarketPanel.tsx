@@ -188,9 +188,9 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
         x={padL + plotW + padR / 2} y={labelY + 3}
         fill="#fff" fontSize="9" fontWeight="700" textAnchor="middle"
       >
-        {lastPrice >= 1000
-          ? lastPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-          : lastPrice.toFixed(2)}
+        {(lastPrice ?? 0) >= 1000
+          ? (lastPrice ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : (lastPrice ?? 0).toFixed(2)}
       </text>
 
       {/* X-axis time labels */}
@@ -347,7 +347,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
             ) : (
               <>
                 <p className="text-4xl font-black text-gray-900 tracking-tight tabular-nums">
-                  {activeQuote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {(activeQuote.price ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5 font-medium">{activeQuote.currency}</p>
 
@@ -356,7 +356,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
                     isUp ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
                   }`}>
                     {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {delta >= 0 ? "+" : ""}{delta.toFixed(2)} ({deltaPct >= 0 ? "+" : ""}{deltaPct.toFixed(2)}%)
+                    {delta >= 0 ? "+" : ""}{(delta ?? 0).toFixed(2)} ({deltaPct >= 0 ? "+" : ""}{(deltaPct ?? 0).toFixed(2)}%)
                   </div>
                 )}
 
