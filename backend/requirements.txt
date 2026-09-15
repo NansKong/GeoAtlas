@@ -23,8 +23,8 @@ passlib[bcrypt]==1.7.4
 python-multipart>=0.0.18
 
 # Config
-pydantic-settings==2.7.0
-pydantic[email]==2.10.3
+pydantic-settings>=2.7.0
+pydantic[email]>=2.11.10,<=2.12.5
 
 # HTTP client (for news ingestion)
 httpx[http2]==0.27.2
