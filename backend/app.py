@@ -6,18 +6,17 @@ def _zero_gpu_init():
     return "ZeroGPU Online"
 
 import os
-import uvicorn
 import gradio as gr
-from main import app
+from main import app as fastapi_app   # FastAPI instance with all routers
 
-# Create a clean status dashboard for the Hugging Face Space UI
+# ── Gradio dashboard ─────────────────────────────────────────────────────────
 with gr.Blocks(title="GeoAtlas Intelligence API") as demo:
     gr.Markdown(
         """
         # 🌍 GeoAtlas Intelligence API
-        
+
         The GeoAtlas backend service is **Online and Healthy** 🟢
-        
+
         * 📖 **Interactive Swagger UI:** [Open /docs](/docs)
         * 📘 **ReDoc Documentation:** [Open /redoc](/redoc)
         * 🩺 **System Health Check:** [Open /health](/health)
@@ -28,10 +27,12 @@ with gr.Blocks(title="GeoAtlas Intelligence API") as demo:
     _gpu_btn.click(fn=_zero_gpu_init)
     demo.load(fn=_zero_gpu_init)
 
-# Mount Gradio at root so Hugging Face Space displays the dashboard,
-# while FastAPI handles all API routes (/api/v1, /docs, /health, /ws)
-app = gr.mount_gradio_app(app, demo, path="/")
-
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+# ── Launch: Gradio owns the single uvicorn server on port 7860 ───────────────
+# On HF Spaces, `python app.py` is executed directly. We use demo.launch() with
+# the FastAPI app mounted so that ALL routes (/api/v1, /docs, /health) and the
+# Gradio UI share a single uvicorn process on port 7860 — no double-bind.
+demo.launch(
+    server_name="0.0.0.0",
+    server_port=int(os.getenv("PORT", 7860)),
+    app=fastapi_app,   # FastAPI routes are surfaced through Gradio's uvicorn
+)
