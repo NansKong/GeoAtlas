@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { MarketPanel } from "@/components/MarketPanel";
 import { formatDistanceStrict, differenceInSeconds } from "date-fns";
+import { api } from "@/lib/api";
 
 interface SnapshotItem {
   id: string;
@@ -76,21 +77,17 @@ export function MarketOverviewLayer() {
     if (!cleanStr) return;
     setIsSearchingLive(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-      const res = await fetch(
-        `${baseUrl}/market/quote/${encodeURIComponent(cleanStr)}?refresh=true`
+      const { data } = await api.get(
+        `/market/quote/${encodeURIComponent(cleanStr)}`,
+        { params: { refresh: true } }
       );
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.ticker) {
-          setActiveTicker(data.ticker);
-        }
-        await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
-      } else {
-        alert(`Could not fetch live market data for "${cleanStr}". Please verify the symbol or company name.`);
+      if (data?.ticker) {
+        setActiveTicker(data.ticker);
       }
+      await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
     } catch (err) {
       console.error("Live symbol search error:", err);
+      alert(`Could not fetch live market data for "${cleanStr}". Please verify the symbol or company name.`);
     } finally {
       setIsSearchingLive(false);
     }
@@ -99,11 +96,8 @@ export function MarketOverviewLayer() {
   const { data, isLoading } = useQuery<SnapshotPayload>({
     queryKey: ["market-snapshot"],
     queryFn: async () => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-      const res = await fetch(`${baseUrl}/market/snapshot`);
-      if (!res.ok) throw new Error("Failed to fetch snapshot");
-      const d = await res.json();
-      return d as SnapshotPayload;
+      const { data: d } = await api.get<SnapshotPayload>("/market/snapshot");
+      return d;
     },
     refetchInterval: () =>
       typeof document !== "undefined" && document.visibilityState !== "visible" ? 15000 : 5000,
@@ -316,12 +310,12 @@ export function MarketOverviewLayer() {
                     </div>
 
                     <div className="text-base font-extrabold text-gray-900 tracking-tight">
-                      ${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${(item.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
 
                     <div className={`mt-0.5 flex items-center gap-0.5 text-xs font-bold tabular-nums ${isZero ? "text-gray-400" : isUp ? "text-teal-600" : "text-rose-600"}`}>
                       {isZero ? <Minus className="w-3.5 h-3.5" /> : isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                      {isZero ? "0.00%" : `${isUp ? "+" : ""}${item.change.toFixed(2)}%`}
+                      {isZero ? "0.00%" : `${isUp ? "+" : ""}${(item.change ?? 0).toFixed(2)}%`}
                     </div>
 
                     {/* Intelligence Tooltip Hover */}

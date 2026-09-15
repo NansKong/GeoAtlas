@@ -613,9 +613,8 @@ export const fetchPredictionAccuracy = async (): Promise<AccuracyMetrics> => {
 };
 
 export const fetchMarketSnapshot = async (): Promise<MarketSnapshotPayload> => {
-  const res = await fetch("http://localhost:8000/api/v1/market/snapshot");
-  if (!res.ok) throw new Error("Failed to fetch market snapshot");
-  return res.json();
+  const { data } = await api.get("/market/snapshot");
+  return data;
 };
 
 export const fetchPendingReviewEvents = async (limit = 50): Promise<EventReviewItem[]> => {
