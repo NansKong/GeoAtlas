@@ -21,8 +21,8 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379"
-    CELERY_BROKER_URL: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379"
-    CELERY_RESULT_BACKEND: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379"
+    CELERY_BROKER_URL: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379?ssl_cert_reqs=CERT_NONE"
+    CELERY_RESULT_BACKEND: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379?ssl_cert_reqs=CERT_NONE"
 
     # JWT
     SECRET_KEY: str = "b7f2c4e1a8d93f5c6e2b4a9d1f7c3e8a5b6d9c2f4a7e1b3c6d8f0a2c5e7b9d1"
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     SEC_EDGAR_USER_AGENT: str = "GeoAtlas/0.1 (engineering@geoatlas.local)"
     NLP_ALLOWED_LANGUAGES: str = "en"
     NLP_MIN_LANGUAGE_CONFIDENCE: float = 0.80
-    NLP_RELEVANCE_THRESHOLD: float = 0.58
+    NLP_RELEVANCE_THRESHOLD: float = 0.35
     NLP_RELEVANCE_MODEL_MODE: str = "heuristic"
     NLP_RELEVANCE_MODEL_PATH: str = ""
     NLP_EVENT_MODEL_MODE: str = "heuristic"

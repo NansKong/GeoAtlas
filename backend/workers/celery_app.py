@@ -9,7 +9,14 @@ celery_app = Celery(
     include=["workers.ingestion", "workers.event_pipeline", "workers.review_feedback", "workers.predictions", "workers.alerts", "workers.feature_state"],
 )
 
+import ssl
+
+broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_NONE} if (settings.CELERY_BROKER_URL and settings.CELERY_BROKER_URL.startswith("rediss://")) else None
+redis_backend_use_ssl = {"ssl_cert_reqs": ssl.CERT_NONE} if (settings.CELERY_RESULT_BACKEND and settings.CELERY_RESULT_BACKEND.startswith("rediss://")) else None
+
 celery_app.conf.update(
+    broker_use_ssl=broker_use_ssl,
+    redis_backend_use_ssl=redis_backend_use_ssl,
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
