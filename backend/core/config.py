@@ -16,16 +16,16 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres.ehljoqkvqumrcmsmvhlk:geo%40tlas2026@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?ssl=require"
-    DATABASE_URL_SYNC: str = "postgresql+psycopg2://postgres.ehljoqkvqumrcmsmvhlk:geo%40tlas2026@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    DATABASE_URL: str = ""
+    DATABASE_URL_SYNC: str = ""
 
     # Redis
-    REDIS_URL: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379"
-    CELERY_BROKER_URL: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379?ssl_cert_reqs=CERT_NONE"
-    CELERY_RESULT_BACKEND: str = "rediss://default:gQAAAAAAApd4AAIgcDIwZjk5ZmVlYTk0OTA0YzJhOGM5MzZjMTUxZDhiMWQyYQ@engaging-shrew-169848.upstash.io:6379?ssl_cert_reqs=CERT_NONE"
+    REDIS_URL: str = ""
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
 
     # JWT
-    SECRET_KEY: str = "b7f2c4e1a8d93f5c6e2b4a9d1f7c3e8a5b6d9c2f4a7e1b3c6d8f0a2c5e7b9d1"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         return list(set(origins))
 
     # News APIs
-    NEWS_API_KEY: str = "f6e2d131b8354f25a1d0a871d8cefbc9"
+    NEWS_API_KEY: str = ""
     GDELT_BASE_URL: str = "http://api.gdeltproject.org/api/v2/doc/doc"
     EVENTREGISTRY_API_KEY: str = ""
     EVENTREGISTRY_BASE_URL: str = "https://eventregistry.org/api/v1/article/getArticles"
@@ -78,19 +78,19 @@ class Settings(BaseSettings):
     QUALITY_TEMPORAL_MAX_HOURS: int = 48
 
     # Market APIs
-    POLYGON_API_KEY: str = "GPEr4eRE7IIBlUZY0G8u_oNjs8gSD7Rm"
-    FINNHUB_API_KEY: str = "d6parp9r01qk3chjju7gd6parp9r01qk3chjju80"
-    TWELVEDATA_API_KEY: str = "08bbbee230fa4f11acd28efdb6002551"
-    EODHD_API_KEY: str = "69d7e9af258924.22691077"
-    FCS_API_KEY: str = "qSwNxUmd7CqVF3IvUo95"
-    ALPHA_VANTAGE_API_KEY: str = "99XOVBOLXXLRVQ4C"
+    POLYGON_API_KEY: str = ""
+    FINNHUB_API_KEY: str = ""
+    TWELVEDATA_API_KEY: str = ""
+    EODHD_API_KEY: str = ""
+    FCS_API_KEY: str = ""
+    ALPHA_VANTAGE_API_KEY: str = ""
     BINANCE_API_KEY: str = ""
     BINANCE_API_SECRET: str = ""
     MARKET_REQUIRE_LIVE_API: bool = False
 
     # Alpaca Market Data API (free Basic plan = IEX real-time + historical)
-    ALPACA_API_KEY_ID: str = "PKKDZOVANCCMMPOZBZZT3EKPME"
-    ALPACA_API_SECRET_KEY: str = "2TSoUyXQoxQmK38XMsEmaB9gSPwgf58zFsUj6Hu9peWE"
+    ALPACA_API_KEY_ID: str = ""
+    ALPACA_API_SECRET_KEY: str = ""
 
     # Elasticsearch
     ELASTICSEARCH_URL: str = "http://localhost:9200"
