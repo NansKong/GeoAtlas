@@ -1,4 +1,5 @@
 import os
+os.environ["GRADIO_SSR_MODE"] = "false"
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -162,5 +163,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=int(os.getenv("PORT", 7860)),
         show_error=True,
+        ssr_mode=False,
         app_kwargs={"lifespan": _lifespan},
     )
