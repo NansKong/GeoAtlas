@@ -9,3 +9,8 @@ celerybeat-schedule*
 .pytest_cache/
 .venv/
 venv/
+*.key
+*.pub
+ssh-key*
+*.pem
+keys/

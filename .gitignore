@@ -47,6 +47,8 @@ jwt_secret*
 *.p12
 
 # SSH Keys
+ssh-key*
+keys/
 id_rsa*
 id_ed25519*
 id_ecdsa*
