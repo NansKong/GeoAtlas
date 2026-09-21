@@ -4,8 +4,6 @@
 # Environment variable files containing API keys and secrets
 .env
 .env.*
-!.env.example
-!.env*.example
 *.env
 *.env.*
 .env.local
@@ -14,6 +12,10 @@
 .env.production.local
 .env.override
 .env.secrets
+!.env.example
+!.env*.example
+!**/.env.example
+!**/.env*.example
 
 # Credentials, secrets, and API key files
 secrets.json

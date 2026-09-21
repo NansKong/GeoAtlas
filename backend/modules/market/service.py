@@ -128,7 +128,7 @@ YAHOO_QUOTE_TYPE_MAP: dict[str, AssetType] = {
 
 def _yahoo_symbol(ticker: str, asset_type: AssetType) -> str:
     """Map an internal ticker to the symbol Yahoo Finance expects."""
-    t = ticker.upper()
+    t = ticker.upper().replace("/", "")
     if asset_type == AssetType.CRYPTO:
         return t if t.endswith("-USD") else f"{t}-USD"
     if asset_type == AssetType.FOREX:

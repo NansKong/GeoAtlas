@@ -45,12 +45,15 @@ from modules.users.schemas import (
     BillingLimitsOut,
     BillingPlanOut,
     BillingSessionOut,
+    FirebaseLoginRequest,
     RefreshRequest,
     TokenPair,
     UserLogin,
     UserOut,
     UserRegister,
 )
+from core.firebase_auth import verify_firebase_id_token
+from modules.users.models import InstitutionalApiKey, User, UserRole
 from modules.users.service import (
     FREE_BOARD_LIMIT,
     FREE_PREDICTIONS_PER_DAY,
@@ -269,6 +272,56 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
 
     return TokenPair(
         access_token=create_access_token(str(user.id), {"role": user.role}),
+        refresh_token=create_refresh_token(str(user.id)),
+    )
+
+
+@router.post("/firebase-login", response_model=TokenPair)
+async def firebase_login(payload: FirebaseLoginRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Authenticates a user via a verified Firebase ID token.
+    If the user exists in PostgreSQL (by email), logs them in.
+    If the user does not exist, automatically provisions an active User record.
+    Returns GeoAtlas standard TokenPair (access_token, refresh_token).
+    """
+    token_claims = await verify_firebase_id_token(payload.id_token)
+    if not token_claims:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Firebase authentication token",
+        )
+
+    email = token_claims["email"]
+    name = token_claims.get("name") or email.split("@")[0]
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        candidate_username = name[:50]
+        uname_res = await db.execute(select(User).where(User.username == candidate_username))
+        if uname_res.scalar_one_or_none():
+            candidate_username = f"{candidate_username[:40]}_{uuid.uuid4().hex[:6]}"
+
+        user = User(
+            email=email,
+            username=candidate_username,
+            password_hash=hash_password(uuid.uuid4().hex),
+            role=UserRole.FREE,
+            is_active=True,
+            subscription_plan="free",
+            alert_preferences={},
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
+
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    return TokenPair(
+        access_token=create_access_token(str(user.id), {"role": role_val}),
         refresh_token=create_refresh_token(str(user.id)),
     )
 

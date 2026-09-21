@@ -267,8 +267,12 @@ class ProviderContext:
                         self.breaker.record_failure()
                         self.health.update(False, latency)
                         return result
-                    if result.status_code >= 400:
+                    if result.status_code >= 500:
                         self.breaker.record_failure()
+                        self.health.update(False, latency)
+                    elif result.status_code >= 400:
+                        # 4xx client errors (e.g. 404 symbol not found or delisted) are asset-specific,
+                        # not provider outages — do not trip the global circuit breaker for other assets.
                         self.health.update(False, latency)
                     else:
                         self.limiter.success()
@@ -299,7 +303,7 @@ PROVIDERS: Dict[str, ProviderContext] = {
     "eodhd":        ProviderContext("eodhd",        concurrency=10),
     "alphavantage": ProviderContext("alphavantage", concurrency=2),
     "alpaca":       ProviderContext("alpaca",       concurrency=10),
-    "yahoo":        ProviderContext("yahoo",        concurrency=10),
+    "yahoo":        ProviderContext("yahoo",        concurrency=20),
 }
 
 

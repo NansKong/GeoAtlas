@@ -5,14 +5,19 @@ Usage:
     python scripts/seed_assets.py
 """
 
-from __future__ import annotations
-
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
-
-from core.config import settings
-from modules.market.models import Asset, AssetType
+import asyncio
+import os
+import sys
+from datetime import datetime, timezone
 from typing import Optional
+
+# Ensure backend root is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sqlalchemy import select
+from core.database import AsyncSessionFactory
+from modules.market.models import Asset, AssetType, MarketPrice
+
 
 
 # Curated reference prices used ONLY to seed a starting point for assets that
@@ -186,17 +191,16 @@ SEED_ASSETS = [
 ]
 
 
-def main() -> None:
-    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
-
+async def async_main() -> None:
     created = 0
     updated = 0
 
-    with Session(engine) as session:
+    async with AsyncSessionFactory() as session:
         for data in SEED_ASSETS:
-            existing = session.execute(
+            res = await session.execute(
                 select(Asset).where(Asset.ticker == data["ticker"])
-            ).scalar_one_or_none()
+            )
+            existing = res.scalar_one_or_none()
 
             if existing:
                 existing.name       = data["name"]
@@ -211,21 +215,20 @@ def main() -> None:
                 session.add(Asset(**data))
                 created += 1
 
-        session.commit()
+        await session.commit()
 
         # Seed baseline quotes if missing
-        from modules.market.models import MarketPrice
-        from datetime import datetime, timezone
-
         seeded_quotes = 0
         skipped_unpriced = 0
-        all_assets = session.execute(select(Asset)).scalars().all()
+        all_assets_res = await session.execute(select(Asset))
+        all_assets = all_assets_res.scalars().all()
         now = datetime.now(timezone.utc)
 
         for asset in all_assets:
-            existing_q = session.execute(
+            existing_q_res = await session.execute(
                 select(MarketPrice).where(MarketPrice.asset_id == asset.id).limit(1)
-            ).first()
+            )
+            existing_q = existing_q_res.first()
             if not existing_q:
                 price = _baseline_price(asset.ticker)
                 if price is None:
@@ -247,7 +250,7 @@ def main() -> None:
                 )
                 seeded_quotes += 1
 
-        session.commit()
+        await session.commit()
 
     total = len(SEED_ASSETS)
     print(
@@ -256,5 +259,10 @@ def main() -> None:
     )
 
 
+def main() -> None:
+    asyncio.run(async_main())
+
+
 if __name__ == "__main__":
     main()
+

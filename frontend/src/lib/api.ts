@@ -834,7 +834,27 @@ export const loginUser = async (email: string, password: string): Promise<AuthTo
   return data;
 };
 
+export const loginWithFirebase = async (idToken: string): Promise<AuthTokenResponse> => {
+  const { data } = await api.post<AuthTokenResponse>("/auth/firebase-login", { id_token: idToken });
+  if (typeof window !== "undefined") {
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+    api.defaults.headers.common.Authorization = `Bearer ${data.access_token}`;
+  }
+  return data;
+};
+
 export const registerUser = async (email: string, username: string, password: string): Promise<UserProfile> => {
   const { data } = await api.post<UserProfile>("/auth/register", { email, username, password });
   return data;
 };
+
+export const logoutUser = async (): Promise<void> => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    delete api.defaults.headers.common.Authorization;
+    window.dispatchEvent(new Event("auth:logout"));
+  }
+};
+

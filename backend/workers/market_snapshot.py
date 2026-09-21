@@ -31,7 +31,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 SNAPSHOT_INTERVAL = 30          # seconds
 ASSET_CACHE_TTL = 30            # 30 sec (fast refresh for dynamic asset auto-discovery)
 MAX_STALE_SNAPSHOT_SEC = 120    # last-good fallback TTL
-PROVIDER_TASK_TIMEOUT = 5.0     # per-provider soft timeout
+PROVIDER_TASK_TIMEOUT = 12.0    # per-provider soft timeout (generous headroom for 70+ assets)
 DYNAMIC_DISCOVERY_CAP = 40      # cap on newly-discovered-this-run low-priority tickers polled per cycle
 
 # Priority ticker sets
@@ -452,8 +452,9 @@ async def fetch_yahoo_per_ticker(tickers: list, asset_types: Dict[str, AssetType
     out = {}
 
     async def fetch_one(ticker):
-        asset_type = asset_types.get(ticker, AssetType.STOCK)
-        symbol = _yahoo_symbol(ticker, asset_type)
+        clean_t = ticker.upper().replace("/", "")
+        asset_type = asset_types.get(clean_t) or asset_types.get(ticker, AssetType.STOCK)
+        symbol = _yahoo_symbol(clean_t, asset_type)
         try:
             response = await ctx.execute(
                 global_http_client.get,
@@ -467,14 +468,17 @@ async def fetch_yahoo_per_ticker(tickers: list, asset_types: Dict[str, AssetType
                     meta = results[0].get("meta") or {}
                     price = meta.get("regularMarketPrice")
                     if price is not None:
-                        out[ticker] = normalize_price(
+                        norm = normalize_price(
                             {"price": price, "change": meta.get("regularMarketChangePercent", 0.0)},
                             "yahoo",
                         )
+                        out[ticker] = norm
+                        if clean_t != ticker:
+                            out[clean_t] = norm
         except Exception as e:
             logger.debug(f"Yahoo failed for {ticker} ({symbol}): {e}")
 
-    await asyncio.gather(*(fetch_one(t) for t in tickers))
+    await asyncio.gather(*(fetch_one(t) for t in tickers), return_exceptions=True)
     return {"status": "live" if out else "stale", "data": out}
 
 
@@ -611,16 +615,19 @@ async def run_snapshot_loop():
 
             for a in assets:
                 t = a.ticker.upper()
+                clean_t = t.replace("/", "")
                 ticker_asset_type[t] = a.asset_type
+                ticker_asset_type[clean_t] = a.asset_type
+                ticker_asset_type[normalize_forex(t)] = a.asset_type
                 if a.asset_type in {AssetType.STOCK, AssetType.ETF, AssetType.COMMODITY, AssetType.INDEX}:
-                    if t in HIGH_PRIORITY_TICKERS:
+                    if t in HIGH_PRIORITY_TICKERS or clean_t in HIGH_PRIORITY_TICKERS:
                         equity_tickers_high.append(t)
                     elif a.created_at and a.created_at > worker_start_time:
                         dynamic_candidates.append((a.created_at, t))
                     else:
                         equity_tickers_low.append(t)
                 elif a.asset_type == AssetType.FOREX:
-                    forex_tickers.append(normalize_forex(t))
+                    forex_tickers.append(t)
 
             dynamic_candidates.sort(key=lambda pair: pair[0], reverse=True)
             equity_tickers_low.extend(t for _, t in dynamic_candidates[:DYNAMIC_DISCOVERY_CAP])
@@ -699,8 +706,11 @@ async def run_snapshot_loop():
                         )
                     elif asset.asset_type == AssetType.FOREX:
                         key = normalize_forex(ticker)
+                        clean_key = ticker.replace("/", "")
                         data = choose_best(
                             yahoo_res["data"].get(ticker),
+                            yahoo_res["data"].get(clean_key),
+                            yahoo_res["data"].get(key),
                             fcs_res["data"].get(key),
                             twelvedata_res["data"].get(key),
                         )

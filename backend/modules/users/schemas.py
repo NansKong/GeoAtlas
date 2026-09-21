@@ -1,7 +1,13 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
+
+try:
+    import email_validator  # noqa: F401
+    from pydantic import EmailStr
+except ImportError:
+    EmailStr = str  # type: ignore
 
 
 class UserRegister(BaseModel):
@@ -13,6 +19,10 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class FirebaseLoginRequest(BaseModel):
+    id_token: str
 
 
 class UserOut(BaseModel):

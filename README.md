@@ -8,7 +8,7 @@
 
 | Component | Platform | URL / Endpoint |
 | :--- | :--- | :--- |
-| **Frontend Web App** | Vercel (Next.js 14) | [https://geo-atlas-two.vercel.app](https://geo-atlas-two.vercel.app) |
+| **Frontend Web App** | Vercel (Next.js 14) | [https://geoatlas-live.vercel.app](https://geoatlas-live.vercel.app) |
 | **Backend REST & WS API** | Oracle Cloud Ampere A1 (Caddy SSL) | [https://137.23.43.48.sslip.io](https://137.23.43.48.sslip.io) |
 | **API Documentation** | Swagger / OpenAPI | [https://137.23.43.48.sslip.io/docs](https://137.23.43.48.sslip.io/docs) |
 | **System Health & Circuits** | Monitoring Telemetry | [https://137.23.43.48.sslip.io/health](https://137.23.43.48.sslip.io/health) |
@@ -19,7 +19,7 @@
 
 ```mermaid
 graph TD
-    Client["User Browser"] -->|HTTPS / WSS| Vercel["Vercel Frontend (Next.js 14)<br>geo-atlas-two.vercel.app"]
+    Client["User Browser"] -->|HTTPS / WSS| Vercel["Vercel Frontend (Next.js 14)<br>geoatlas-live.vercel.app"]
     Client -->|HTTPS REST & WSS| Caddy["Caddy Reverse Proxy (Auto-TLS)<br>137.23.43.48.sslip.io:443"]
     
     subgraph "Oracle Cloud Infrastructure (Always-Free Ampere A1 VM)"

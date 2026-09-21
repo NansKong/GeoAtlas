@@ -24,19 +24,24 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = ""
     CELERY_RESULT_BACKEND: str = ""
 
-    # JWT
+    # JWT & Auth
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    FIREBASE_PROJECT_ID: str = ""
 
     # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://geo-atlas-two.vercel.app"
+    ALLOWED_ORIGINS: str = (
+        "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,"
+        "https://geo-atlas-two.vercel.app,https://geoatlas-live.vercel.app"
+    )
 
     @property
     def cors_origins(self) -> List[str]:
         origins = [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
         origins.append("https://geo-atlas-two.vercel.app")
+        origins.append("https://geoatlas-live.vercel.app")
         return list(set(origins))
 
     # News APIs
