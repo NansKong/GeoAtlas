@@ -1,135 +1,245 @@
 # GeoAtlas 🌍📈
 
-**GeoAtlas** is a real-time geopolitical intelligence and market prediction platform. It ingests global news, extracts macroeconomic and geopolitical events using advanced NLP, maps them to financial assets via a dynamic Knowledge Graph, and predicts market impacts using machine learning models (`GeoAtlas-Ensemble-v1`).
+**GeoAtlas** is a real-time geopolitical intelligence and market prediction platform. It continuously ingests global news, extracts macroeconomic and geopolitical events using calibrated NLP pipelines, maps them to financial assets via an interactive Knowledge Graph, and predicts market impacts using machine learning models (`GeoAtlas-Ensemble-v1`).
 
 ---
 
-## Architecture Overview
-GeoAtlas is built as a **modular monolith** with event-driven background workers:
-- **FastAPI Backend:** Handles REST API endpoints, user authentication, and high-reliability market snapshot & prediction services.
-- **Celery Workers:** Manages asynchronous tasks including multi-source RSS ingestion, HTML sanitization, NLP extraction, knowledge graph seeding, and ML inference.
-- **Next.js Frontend:** Interactive intelligence dashboard featuring global event feeds, light-themed map page with dynamic hotspot sidebars, asset panels, and custom user watchlists.
-- **PostgreSQL + TimescaleDB:** Stores relational data (users, events, assets, predictions) and time-series market price snapshots.
+## 🌐 Live Deployments
+
+| Component | Platform | URL / Endpoint |
+| :--- | :--- | :--- |
+| **Frontend Web App** | Vercel (Next.js 14) | [https://geo-atlas-two.vercel.app](https://geo-atlas-two.vercel.app) |
+| **Backend REST & WS API** | Oracle Cloud Ampere A1 (Caddy SSL) | [https://137.23.43.48.sslip.io](https://137.23.43.48.sslip.io) |
+| **API Documentation** | Swagger / OpenAPI | [https://137.23.43.48.sslip.io/docs](https://137.23.43.48.sslip.io/docs) |
+| **System Health & Circuits** | Monitoring Telemetry | [https://137.23.43.48.sslip.io/health](https://137.23.43.48.sslip.io/health) |
 
 ---
 
-## Tech Stack
-### Backend & ML Pipeline
-* **Framework:** Python 3.11+, FastAPI, SQLAlchemy, Alembic
-* **Orchestration & Storage:** Celery, Redis (Task Broker & Cache), PostgreSQL / TimescaleDB
-* **NLP Pipeline:** spaCy (NER), HuggingFace Transformers (DistilBERT for relevance, FinBERT for sentiment), custom HTML sanitization (`clean_feed_text`)
-* **Prediction Engine:** `GeoAtlas-Ensemble-v1` (FinBERT NLP sentiment + Chronos T5 time-series forecasting model), VolatilityNet & TrendForce models
+## 🏛️ System Architecture
 
-### Data Providers & Sources
-* **Market Data (Primary):** Yahoo Finance (`yfinance`) for Equities, ETFs, Commodities, Market Indices, and Forex pairs. **Binance API** for Crypto.
-* **News & Geopolitical Feeds:** Multi-source RSS feeds (Reuters, AP, BBC, Financial Times, Al Jazeera, Bloomberg), GDELT, NewsAPI, Mediastack, EventRegistry.
-* **Filtering & Moderation:** Automated non-macro noise purge (`purge_non_macro.py`), blocklist filtering, and calibrated source credibility thresholds (`AUTO_APPROVE_THRESHOLD = 0.60`).
+```mermaid
+graph TD
+    Client["User Browser"] -->|HTTPS / WSS| Vercel["Vercel Frontend (Next.js 14)<br>geo-atlas-two.vercel.app"]
+    Client -->|HTTPS REST & WSS| Caddy["Caddy Reverse Proxy (Auto-TLS)<br>137.23.43.48.sslip.io:443"]
+    
+    subgraph "Oracle Cloud Infrastructure (Always-Free Ampere A1 VM)"
+        Caddy -->|HTTP :7860| FastAPIDocker["Docker: geoatlas<br>FastAPI + Market Stream Worker"]
+        CeleryWorker["Docker: geoatlas-worker<br>Celery Background Consumer"]
+        CeleryBeat["Docker: geoatlas-beat<br>Celery Periodic Scheduler"]
+    end
+    
+    subgraph "External Cloud Services"
+        FastAPIDocker -->|Pooled PostgreSQL :6543| Supabase["Supabase PostgreSQL (PgBouncer)"]
+        CeleryWorker -->|Pooled PostgreSQL :6543| Supabase
+        CeleryWorker -->|TLS rediss:// :6379| Upstash["Upstash Redis (Broker & Results)"]
+        CeleryBeat -->|TLS rediss:// :6379| Upstash
+        FastAPIDocker -->|Real-time Quotes| MarketAPIs["Market Providers (Yahoo, Alpaca, Polygon, TwelveData)"]
+        CeleryWorker -->|News Ingestion| NewsAPIs["News Sources (Google News, BBC, NYT, Al Jazeera, Reuters)"]
+    end
+```
+
+GeoAtlas is engineered as a **modular monolith** with asynchronous, event-driven background services:
+
+1. **FastAPI Web Server (`geoatlas` container)**:
+   - High-throughput asynchronous REST endpoints, WebSocket market quote streams, and user authentication.
+   - Non-blocking database write buffering via `DBBuffer` to avoid connection pool exhaustion.
+   - Circuit breakers with adaptive rate-limiting per market data provider.
+
+2. **Celery Worker (`geoatlas-worker` container)**:
+   - Ingests raw articles from multiple Tier-1 news outlets and wire services.
+   - Sanitizes text, strips markup, and hashes content (`SHA-256`) for deduplication.
+   - Executes multi-stage NLP gating (language validation, keyword relevance scoring, event extraction, and sentiment calculation).
+   - Dynamically links events to assets via Knowledge Graph expansion (L1 direct mentions, L2 sector links).
+
+3. **Celery Beat Scheduler (`geoatlas-beat` container)**:
+   - Dispatches recurring cron schedules (RSS ingestion every 10 min, article event extraction every 5 min, rolling feature computation every 3 min).
+
+4. **Caddy Reverse Proxy**:
+   - Manages automated Let's Encrypt SSL/TLS certificates via wildcard DNS (`137.23.43.48.sslip.io`).
+   - Handles HTTP/2, HTTP/3, and automatic WebSocket protocol upgrading (`wss://`).
+
+---
+
+## 🛠️ Tech Stack
+
+### Backend & Machine Learning
+* **Language & Framework:** Python 3.11+, FastAPI, SQLAlchemy (Asyncio), Pydantic v2
+* **Asynchronous Workers:** Celery, Upstash Redis (Task Broker & Result Backend with TLS)
+* **Database:** PostgreSQL (Supabase with PgBouncer transaction pooling)
+* **NLP & Information Extraction:** spaCy (`en_core_web_sm`), Hugging Face Transformers, custom heuristic & scikit-learn classifiers
+* **Time-Series & Prediction:** Amazon Chronos-Forecasting (T5 time-series foundation model), PyTorch, XGBoost, VolatilityNet
+
+### Data Ingestion & Market Feeds
+* **Market Quotes:** Yahoo Finance (`yfinance`), Alpaca Market Data API (IEX real-time), Binance, Polygon, TwelveData.
+* **Geopolitical & Macro Feeds:** BBC World, Google News (World & Business), The New York Times, Al Jazeera, The Guardian, Deutsche Welle, Reuters, NewsAPI, GDELT 2.0.
 
 ### Frontend
-* **Framework:** Next.js (React), TypeScript
-* **Styling:** Tailwind CSS, ShadCN UI, Lucide Icons
-* **State & Data:** React Query, Recharts (Market visualization)
+* **Framework:** Next.js 14 (App Router), React, TypeScript
+* **Styling & UI:** Tailwind CSS, ShadCN UI primitives, Lucide Icons
+* **Data Fetching & State:** TanStack React Query, Axios, Native WebSockets
+* **Visualizations:** Recharts (interactive price & trend charts), Leaflet / SVG geopolitical maps
 
 ---
 
-## Key Features
-* **Live Intelligence Feed:** Aggregates and normalizes geopolitical events from top global news feeds with zero HTML markup leakage.
-* **Geopolitical Noise Purging:** Filters out sports, lifestyle, and non-macro noise at both ingestion and API service layers.
-* **Knowledge Graph Asset Mapping:** Maps geopolitical events directly to affected tickers (L1 Direct Mention) and supply-chain dependencies (L2 Sector Expansion).
-* **High-Reliability Market Data:** Multi-tier quote fallback powered by Yahoo Finance and Binance to eliminate API rate limits.
-* **Interactive Geopolitical Map:** Light-themed Map interface featuring dynamic event-type hotspot sidebars and count badges.
-* **AI Prediction Surface:** Evaluates event impact severity and asset direction with TTL-cached prediction metrics.
-* **Automated Maintenance:** Background scripts for stale prediction purging, backlog auto-approval, and DB sanitization.
+## ✨ Core Features
+
+* **Real-Time Geopolitical Event Extraction:** Translates breaking global news into structured intelligence with severity scores, confidence levels, country tags, and affected assets.
+* **Knowledge Graph Asset Mapping:** Links geopolitical crises directly to equity tickers, commodities (Gold, Crude Oil, Natural Gas), and sector ETFs through supply-chain relationships.
+* **Live Multi-Asset Market Stream:** Low-latency price tracking across Crypto, Equities, and Commodities with automatic circuit breakers to protect against provider outages.
+* **Interactive Hotspot Intelligence Map:** Geographical dashboard displaying high-severity flashpoints, event clusters, and regional geopolitical risk scores.
+* **Automated Event Moderation:** Two-tier confidence system: high-confidence events (`>= 0.60`) are auto-approved for public map display, while borderline signals are routed to the review queue.
+* **Zero Secret Leakage Architecture:** Production credentials, database passwords, and private keys are never committed to source control and are loaded dynamically from environment variables at runtime.
 
 ---
 
-## Getting Started
+## 🚀 Getting Started Locally
 
 ### Prerequisites
 * Python 3.11+
 * Node.js 18+
-* PostgreSQL (with TimescaleDB extension)
-* Redis Server
-* Docker & Docker Compose (optional)
+* PostgreSQL & Redis (or Supabase & Upstash accounts)
+* Docker (optional, for containerized execution)
+
+---
 
 ### 1. Backend Setup
+
 ```bash
 cd backend
 
-# Create and activate virtual environment
+# Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# On Windows:
+venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Setup environment variables
+# Download spaCy NLP model
+python -m spacy download en_core_web_sm
+
+# Configure environment variables
 cp .env.example .env
+# Edit .env with your PostgreSQL, Redis, and API credentials
 
 # Run database migrations
 alembic upgrade head
 
-# Start the FastAPI server
-uvicorn main:app --reload --port 8000
+# Start the FastAPI development server
+uvicorn main:app --reload --port 7860
 ```
 
-### 2. Celery Worker & Snapshot Tasks (Separate Terminal)
+---
+
+### 2. Background Workers (Separate Terminals)
+
 ```bash
 cd backend
-source venv/bin/activate
+source venv/bin/activate  # Or venv\Scripts\activate on Windows
 
-# Start the Celery worker
-celery -A workers.celery_app worker --loglevel=info
+# Terminal 1: Celery Worker
+celery -A workers.celery_app worker --loglevel=info --concurrency=2
 
-# Start Celery Beat (scheduled RSS ingestion and market snapshots)
+# Terminal 2: Celery Beat Scheduler
 celery -A workers.celery_app beat --loglevel=info
 ```
 
-### 3. Utility & Maintenance Scripts
-```bash
-cd backend
+---
 
-# Purge non-macro/lifestyle events from DB
-python -m scripts.purge_non_macro
+### 3. Frontend Setup
 
-# Batch approve pending review events (confidence >= 0.60)
-python -m scripts.publish_pending_review
-
-# Generate live predictions for active market assets
-python -m scripts.generate_live_predictions
-```
-
-### 4. Frontend Setup
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
 
-# Run the development server
+# Configure environment variables
+echo "NEXT_PUBLIC_API_URL=http://localhost:7860/api/v1" > .env.local
+
+# Run development server
 npm run dev
 ```
-The frontend application will be available at `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## Project Structure
-```text
-GeoAtlas/
-├── backend/                  # FastAPI Application & Background Pipeline
-│   ├── core/                 # Config, DB, Security, Cache, HTML Text Cleaners
-│   ├── modules/              # Routers, Models & Services (users, events, market, predictions, boards)
-│   ├── workers/              # Celery tasks (RSS ingestion, market snapshots, event pipeline)
-│   ├── scripts/              # Data sanitization, purge tools & live prediction generators
-│   └── alembic/              # Database migration scripts
-├── frontend/                 # Next.js Frontend Application
-│   ├── src/app/              # Next.js App Router Pages (Feed, Map, Pricing)
-│   └── src/components/       # UI Components (MarketPanel, PredictionCard, Map Layers, Watchlists)
-├── ops/                      # Infrastructure & Deployment Configs
-├── PRD/                      # Product Requirements & Documentation
-├── .gitignore                # Security rules (ignoring API keys, envs, logs, non-essential docs)
-└── README.md                 # Project Overview & Setup Guide
+## 🐳 Production Deployment (Oracle Cloud VM / Docker)
+
+To run the entire backend stack in production via Docker:
+
+```bash
+# 1. Build the production Docker image
+cd backend
+docker build -t geoatlas-backend .
+
+# 2. Run the FastAPI REST API & Market Streaming container
+docker run -d --name geoatlas --restart always \
+  -p 7860:7860 \
+  --env-file .env \
+  geoatlas-backend
+
+# 3. Run the Celery Worker container
+docker run -d --name geoatlas-worker --restart always \
+  --env-file .env \
+  geoatlas-backend \
+  celery -A workers.celery_app worker --loglevel=info --concurrency=2
+
+# 4. Run the Celery Beat Scheduler container
+docker run -d --name geoatlas-beat --restart always \
+  --env-file .env \
+  geoatlas-backend \
+  celery -A workers.celery_app beat --loglevel=info
+```
+
+### Reverse Proxy & SSL Setup (Caddy)
+To securely proxy traffic from Vercel to your VM with automatic Let's Encrypt certificates:
+```caddyfile
+# /etc/caddy/Caddyfile
+<your-ip>.sslip.io {
+    reverse_proxy localhost:7860
+}
 ```
 
 ---
 
-## License
-This project is proprietary and confidential.
+## 📂 Repository Structure
+
+```text
+GeoAtlas/
+├── backend/                      # Backend Service & Background Pipeline
+│   ├── core/                     # Configuration, Database engine, HTTP clients, Metrics
+│   ├── modules/                  # Modular domain routers, models, and business logic
+│   │   ├── events/               # Geopolitical event extraction & news routers
+│   │   ├── market/               # Market snapshot, quotes, and asset catalog
+│   │   ├── predictions/          # Prediction engine & model runners
+│   │   ├── users/                # Auth, JWT, billing & user profiles
+│   │   └── boards/               # Custom intelligence boards, pins & alerts
+│   ├── workers/                  # Celery tasks (RSS ingestion, event pipeline, market snapshot)
+│   ├── scripts/                  # DB seeders, sanitization, and manual batch inference tools
+│   ├── alembic/                  # Database migration versions
+│   ├── Dockerfile                # Production container specification (ARM64 & x86_64)
+│   └── main.py                   # FastAPI application entrypoint
+├── frontend/                     # Next.js 14 Web Application
+│   ├── src/app/                  # App Router pages (Feed, Map, Predictions, Boards, Alerts)
+│   ├── src/components/           # UI Components (MarketPanel, EventPin, GeoHeatmapWidget)
+│   └── src/lib/                  # API client, date utilities, helper functions
+├── keys/                         # Server access keys (Strictly gitignored)
+├── .gitignore                    # Git rules preventing key or secret commits
+└── README.md                     # Project Overview & System Documentation
+```
+
+---
+
+## 🔒 Security & Privacy
+
+* **Zero Hardcoded Secrets:** Fallback values in `core/config.py` are strictly empty strings. Secrets are exclusively sourced from environment variables at runtime.
+* **Excluded Keys & State:** Private keys (`*.key`, `*.pem`), credentials (`.env`), and runtime logs are explicitly excluded via `.gitignore`.
+* **Database Safeguards:** Configured with unnamed prepared statements (`statement_cache_size=0`) to ensure safe execution with Supabase's transaction pooler (PgBouncer).
+
+---
+
+## 📄 License
+Proprietary. All rights reserved.
