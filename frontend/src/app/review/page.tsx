@@ -10,6 +10,7 @@ import {
   editPendingReviewEvent,
   fetchMe,
   fetchPendingReviewEvents,
+  fetchQualitySummary,
   rejectReviewEvent,
   type EventReviewItem,
   type ReviewDecisionInput,
@@ -63,6 +64,12 @@ export default function ReviewQueuePage() {
     queryKey: ["review-queue"],
     queryFn: () => fetchPendingReviewEvents(60),
     enabled: meQuery.isSuccess,
+  });
+
+  const qualityQuery = useQuery({
+    queryKey: ["events-quality-summary"],
+    queryFn: fetchQualitySummary,
+    staleTime: 60_000,
   });
 
   const queue = queueQuery.data ?? [];
@@ -161,6 +168,46 @@ export default function ReviewQueuePage() {
           <span>{queue.length} pending</span>
           <span className="text-gray-300">|</span>
           <span>{meQuery.data?.username}</span>
+        </div>
+      </div>
+
+      {/* Operator Quality & NLP Telemetry Banner */}
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Classification Accuracy</p>
+          <p className="mt-1 text-2xl font-black text-gray-900">
+            {qualityQuery.data?.classification_accuracy != null
+              ? `${(qualityQuery.data.classification_accuracy * 100).toFixed(1)}%`
+              : "-"}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500">Approve / Reject agreement proxy</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">NLP Latency P95</p>
+          <p className="mt-1 text-2xl font-black text-gray-900">
+            {qualityQuery.data?.nlp_latency_p95_seconds != null
+              ? `${qualityQuery.data.nlp_latency_p95_seconds.toFixed(1)}s`
+              : "-"}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500">Article create to NLP processed</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Review Backlog</p>
+          <p className="mt-1 text-2xl font-black text-rose-600">
+            {qualityQuery.data?.review_queue_backlog ?? queue.length}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500">Pending operator review events</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Asset Mapping Coverage</p>
+          <p className="mt-1 text-2xl font-black text-emerald-600">
+            {qualityQuery.data?.asset_mapping_coverage != null
+              ? `${(qualityQuery.data.asset_mapping_coverage * 100).toFixed(1)}%`
+              : "-"}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Freshness: {qualityQuery.data?.news_ingestion_freshness_minutes != null ? `${qualityQuery.data.news_ingestion_freshness_minutes.toFixed(0)}m` : "-"}
+          </p>
         </div>
       </div>
 

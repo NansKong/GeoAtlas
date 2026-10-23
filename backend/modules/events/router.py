@@ -27,6 +27,7 @@ from modules.events.schemas import (
     EventImpactOut,
     EventOut,
     EventReviewOut,
+    MaritimeChokepointOut,
     NewsArticleOut,
     QualitySummaryOut,
     ReviewActionOut,
@@ -34,6 +35,7 @@ from modules.events.schemas import (
     ReviewDecisionIn,
     ReviewHistoryOut,
     TrainingExampleOut,
+    UnlocatedEventsSummaryOut,
     WeeklyReviewProgressOut,
 )
 from modules.market.models import Asset
@@ -741,6 +743,73 @@ async def list_events(
     return out
 
 
+MARITIME_CHOKEPOINTS_CONFIG = [
+    {
+        "id": "hormuz",
+        "name": "Strait of Hormuz",
+        "coordinates": [56.25, 26.55],
+        "oil_flow_share": "~20% of global petroleum liquids (~21M bpd)",
+        "note": "Persian Gulf arterial outlet for Saudi, Iraqi, Kuwaiti, UAE, and Iranian crude exports.",
+        "keywords": ["hormuz", "persian gulf", "strait of hormuz", "fujairah"],
+        "theaters": ["Iran", "Oman", "United Arab Emirates", "Saudi Arabia", "Qatar"],
+    },
+    {
+        "id": "bab-el-mandeb",
+        "name": "Bab el-Mandeb & Red Sea",
+        "coordinates": [43.35, 12.60],
+        "oil_flow_share": "~9% of global seaborne oil (~8.8M bpd)",
+        "note": "Red Sea to Gulf of Aden gateway; critical maritime chokepoint vulnerable to anti-ship strikes.",
+        "keywords": ["bab el-mandeb", "bab al-mandab", "red sea", "gulf of aden", "houthi", "yemen"],
+        "theaters": ["Yemen", "Djibouti", "Saudi Arabia", "Egypt", "Eritrea"],
+    },
+    {
+        "id": "suez",
+        "name": "Suez Canal",
+        "coordinates": [32.35, 30.70],
+        "oil_flow_share": "~12% of global trade & ~9% seaborne oil",
+        "note": "Direct link between Mediterranean and Red Sea; reroutes via Cape of Good Hope add 10-14 days transit.",
+        "keywords": ["suez", "suez canal", "cape of good hope"],
+        "theaters": ["Egypt", "Israel"],
+    },
+    {
+        "id": "malacca",
+        "name": "Strait of Malacca",
+        "coordinates": [100.95, 3.20],
+        "oil_flow_share": "~25% of world maritime trade (~16M bpd crude)",
+        "note": "Primary conduit connecting Indian Ocean with South China Sea and East Asian manufacturing centers.",
+        "keywords": ["malacca", "strait of malacca", "singapore strait", "south china sea"],
+        "theaters": ["Singapore", "Malaysia", "Indonesia", "China"],
+    },
+    {
+        "id": "bosporus",
+        "name": "Turkish Straits (Bosporus)",
+        "coordinates": [29.05, 41.08],
+        "oil_flow_share": "~3% of global oil transit & Black Sea grain corridor",
+        "note": "Narrow waterway linking Black Sea to Aegean; vital for Russian, Kazakh crude and regional agriculture.",
+        "keywords": ["bosporus", "bosphorus", "black sea", "dardanelles", "turkish straits"],
+        "theaters": ["Turkey", "Russia", "Ukraine", "Romania"],
+    },
+    {
+        "id": "gibraltar",
+        "name": "Strait of Gibraltar",
+        "coordinates": [-5.45, 35.95],
+        "oil_flow_share": "Over 100,000 transit vessels annually",
+        "note": "Western threshold to the Mediterranean Basin, linking Atlantic trade to Southern Europe and North Africa.",
+        "keywords": ["gibraltar", "strait of gibraltar"],
+        "theaters": ["Spain", "Morocco", "United Kingdom"],
+    },
+    {
+        "id": "panama",
+        "name": "Panama Canal",
+        "coordinates": [-79.55, 9.08],
+        "oil_flow_share": "~5% of global maritime trade (~40% US container traffic)",
+        "note": "Freshwater lock-based passage connecting Atlantic and Pacific; sensitive to drought and draft restrictions.",
+        "keywords": ["panama", "panama canal", "canal transit"],
+        "theaters": ["Panama", "United States"],
+    },
+]
+
+
 @router.get("/heatmap", response_model=List[EventHeatmapPointOut])
 async def event_heatmap(
     days: int = Query(14, ge=1, le=90),
@@ -749,12 +818,32 @@ async def event_heatmap(
     db: AsyncSession = Depends(get_db),
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
+    since_30d = datetime.now(timezone.utc) - timedelta(days=30)
     parsed_event_type = _parse_event_type(event_type) if event_type else None
+
+    # Calculate 30-day baseline per country
+    baseline_query = (
+        select(Event.country, func.count(Event.id))
+        .where(
+            Event.status.in_(PUBLISHED_EVENT_STATUSES),
+            Event.published_at.is_not(None),
+            Event.published_at >= since_30d,
+            Event.country.is_not(None),
+            ~Event.country.in_(("Unknown", "Global")),
+        )
+        .group_by(Event.country)
+    )
+    if parsed_event_type:
+        baseline_query = baseline_query.where(Event.event_type == parsed_event_type)
+    baseline_result = await db.execute(baseline_query)
+    baseline_30d_counts = {c: count for c, count in baseline_result.all() if c}
+
     query = select(Event).where(
         Event.status.in_(PUBLISHED_EVENT_STATUSES),
         Event.published_at.is_not(None),
         Event.published_at >= since,
         Event.country.is_not(None),
+        ~Event.country.in_(("Unknown", "Global")),
     )
     if parsed_event_type:
         query = query.where(Event.event_type == parsed_event_type)
@@ -765,7 +854,7 @@ async def event_heatmap(
     by_country: dict[str, dict[str, float]] = {}
     for event in events:
         country = (event.country or "").strip()
-        if not country:
+        if not country or country in ("Unknown", "Global"):
             continue
         bucket = by_country.setdefault(
             country,
@@ -793,10 +882,17 @@ async def event_heatmap(
         count = int(bucket["event_count"])
         if count <= 0:
             continue
+        lat, lon = _country_coords(country)
+        if lat is None or lon is None:
+            continue
         avg_severity = (bucket["severity_sum"] / bucket["severity_count"]) if bucket["severity_count"] else 0.0
         avg_confidence = (bucket["confidence_sum"] / bucket["confidence_count"]) if bucket["confidence_count"] else 0.0
         conflict_share = bucket["conflict_count"] / float(count)
-        lat, lon = _country_coords(country)
+
+        baseline_30d = baseline_30d_counts.get(country, count)
+        expected_window = max(0.4, (float(baseline_30d) / 30.0) * float(days))
+        baseline_ratio = round(count / expected_window, 2)
+
         points.append(
             EventHeatmapPointOut(
                 country=country,
@@ -806,6 +902,8 @@ async def event_heatmap(
                 conflict_share=round(conflict_share, 3),
                 latitude=lat,
                 longitude=lon,
+                baseline_count_30d=baseline_30d,
+                baseline_ratio=baseline_ratio,
             )
         )
 
@@ -824,6 +922,182 @@ async def event_heatmap(
     )
     articles = article_rows.scalars().all()
     return _news_heatmap_points(articles, requested_event_type=parsed_event_type, limit=limit)
+
+
+@router.get("/maritime", response_model=List[MaritimeChokepointOut])
+async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
+    """Computes live status (normal / elevated / disrupted), 7d event count,
+    and latest linked headline for the 7 strategic maritime chokepoints."""
+    since_7d = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # Fetch recent published events in last 7 days
+    events_res = await db.execute(
+        select(Event)
+        .where(
+            Event.status.in_(PUBLISHED_EVENT_STATUSES),
+            Event.published_at.is_not(None),
+            Event.published_at >= since_7d,
+        )
+        .order_by(Event.published_at.desc())
+    )
+    events = events_res.scalars().all()
+
+    out: list[MaritimeChokepointOut] = []
+    for cp in MARITIME_CHOKEPOINTS_CONFIG:
+        keywords = cp["keywords"]
+        theaters = set(cp["theaters"])
+
+        matched_events: list[Event] = []
+        for e in events:
+            text = f"{e.title or ''} {e.description or ''}".lower()
+            keyword_match = any(kw in text for kw in keywords)
+            theater_match = (e.country in theaters) and any(
+                term in text
+                for term in (
+                    "tanker", "ship", "navy", "vessel", "drone", "missile",
+                    "strait", "sea", "canal", "port", "oil", "strike", "maritime", "cargo"
+                )
+            )
+            if keyword_match or theater_match:
+                matched_events.append(e)
+
+        count = len(matched_events)
+        has_severe = any((e.severity or 0) >= 4 or e.event_type == EventType.CONFLICT for e in matched_events)
+        if count == 0:
+            status = "normal"
+        elif count >= 3 or has_severe:
+            status = "disrupted"
+        else:
+            status = "elevated"
+
+        latest_headline = matched_events[0].title if matched_events else None
+        latest_event_id = matched_events[0].id if matched_events else None
+
+        # Fetch top affected asset tickers for matched events
+        top_assets: list[str] = []
+        if matched_events:
+            event_ids = [e.id for e in matched_events[:5]]
+            assets_res = await db.execute(
+                select(Asset.ticker)
+                .join(EventImpact, EventImpact.asset_id == Asset.id)
+                .where(
+                    EventImpact.event_id.in_(event_ids),
+                    EventImpact.is_superseded.is_(False),
+                )
+                .group_by(Asset.ticker)
+                .order_by(func.count(EventImpact.id).desc())
+                .limit(4)
+            )
+            top_assets = [t for t in assets_res.scalars().all() if t]
+
+        out.append(
+            MaritimeChokepointOut(
+                id=cp["id"],
+                name=cp["name"],
+                coordinates=cp["coordinates"],
+                oil_flow_share=cp["oil_flow_share"],
+                note=cp["note"],
+                status=status,
+                event_count_7d=count,
+                latest_headline=latest_headline,
+                latest_event_id=latest_event_id,
+                top_assets=top_assets,
+            )
+        )
+
+    return out
+
+
+@router.get("/unlocated", response_model=UnlocatedEventsSummaryOut)
+async def get_unlocated_events(
+    limit: int = Query(50, ge=1, le=150),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns Unknown and Global events decoupled from country baselines."""
+    # Count totals
+    unknown_count_res = await db.execute(
+        select(func.count(Event.id)).where(
+            Event.status.in_(PUBLISHED_EVENT_STATUSES),
+            or_(Event.country == "Unknown", Event.country.is_(None)),
+        )
+    )
+    unknown_count = unknown_count_res.scalar() or 0
+
+    global_count_res = await db.execute(
+        select(func.count(Event.id)).where(
+            Event.status.in_(PUBLISHED_EVENT_STATUSES),
+            Event.country == "Global",
+        )
+    )
+    global_count = global_count_res.scalar() or 0
+
+    # Fetch recent unlocated events
+    query = (
+        select(Event)
+        .where(
+            Event.status.in_(PUBLISHED_EVENT_STATUSES),
+            or_(
+                Event.country.in_(("Unknown", "Global")),
+                Event.country.is_(None),
+            ),
+        )
+        .order_by(Event.published_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    events = result.scalars().all()
+
+    event_outs: list[EventListOut] = []
+    for e in events:
+        impact_assets_result = await db.execute(
+            select(EventImpact, Asset)
+            .join(Asset, Asset.id == EventImpact.asset_id)
+            .where(
+                EventImpact.event_id == e.id,
+                EventImpact.is_superseded.is_(False),
+            )
+            .order_by(EventImpact.confidence_score.desc())
+            .limit(10)
+        )
+        affected_assets = [
+            AffectedAssetOut(
+                ticker=asset.ticker,
+                name=asset.name,
+                impact_direction=impact.impact_direction.value,
+                impact_strength=impact.impact_strength,
+                confidence_score=impact.confidence_score,
+                rationale=impact.rationale,
+                magnitude=impact.magnitude,
+            )
+            for impact, asset in impact_assets_result.all()
+        ]
+        tags_result = await db.execute(
+            select(EventTag.tag)
+            .where(EventTag.event_id == e.id)
+            .order_by(EventTag.tag.asc())
+            .limit(6)
+        )
+        event_outs.append(
+            EventListOut(
+                id=e.id,
+                title=e.title,
+                event_type=e.event_type.value,
+                country=e.country or "Unknown",
+                severity=e.severity,
+                confidence_score=e.confidence_score,
+                published_at=e.published_at,
+                impact_count=len(affected_assets),
+                affected_assets=affected_assets,
+                tags=list(tags_result.scalars().all()),
+            )
+        )
+
+    return UnlocatedEventsSummaryOut(
+        unknown_count=unknown_count,
+        global_count=global_count,
+        total_unlocated=unknown_count + global_count,
+        events=event_outs,
+    )
 
 
 @router.get("/quality/summary", response_model=QualitySummaryOut)

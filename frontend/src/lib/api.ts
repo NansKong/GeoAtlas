@@ -286,6 +286,28 @@ export interface EventHeatmapPoint {
   conflict_share: number;
   latitude?: number;
   longitude?: number;
+  baseline_count_30d?: number;
+  baseline_ratio?: number;
+}
+
+export interface MaritimeChokepoint {
+  id: string;
+  name: string;
+  coordinates: [number, number];
+  oil_flow_share: string;
+  note: string;
+  status: "normal" | "elevated" | "disrupted";
+  event_count_7d: number;
+  latest_headline?: string | null;
+  latest_event_id?: string | null;
+  top_assets: string[];
+}
+
+export interface UnlocatedEventsSummary {
+  unknown_count: number;
+  global_count: number;
+  total_unlocated: number;
+  events: EventListItem[];
 }
 
 export interface QualitySummary {
@@ -616,6 +638,24 @@ export const fetchEventHeatmap = async (params?: {
 export const fetchQualitySummary = async (): Promise<QualitySummary> => {
   const { data } = await api.get("/events/quality/summary");
   return data;
+};
+
+export const fetchMaritimeChokepoints = async (): Promise<MaritimeChokepoint[]> => {
+  try {
+    const { data } = await api.get("/events/maritime");
+    return toArray<MaritimeChokepoint>(data);
+  } catch {
+    return [];
+  }
+};
+
+export const fetchUnlocatedEvents = async (limit = 60): Promise<UnlocatedEventsSummary> => {
+  try {
+    const { data } = await api.get("/events/unlocated", { params: { limit } });
+    return data;
+  } catch {
+    return { unknown_count: 0, global_count: 0, total_unlocated: 0, events: [] };
+  }
 };
 
 export const fetchPredictions = async (params?: {
