@@ -743,71 +743,115 @@ async def list_events(
     return out
 
 
+def _surge_ratio(
+    count_window: int,
+    count_baseline: int,
+    window_days: int,
+    baseline_days: int = 30,
+    k: float = 1.0,
+    min_count: int = 3,
+) -> tuple[Optional[float], str]:
+    """Computes Laplace-smoothed ratio of window activity against a non-overlapping prior baseline.
+    Returns (ratio, status) where status in ('building_baseline', 'surge', 'elevated', 'normal')."""
+    if count_window < min_count:
+        return None, "building_baseline"
+
+    expected = (float(count_baseline) / float(baseline_days)) * float(window_days)
+    ratio = round((float(count_window) + k) / (expected + k), 2)
+
+    # If country had zero baseline history and window count is low, signal is preliminary
+    if count_baseline == 0 and count_window < 5:
+        return None, "building_baseline"
+
+    if ratio >= 2.5:
+        status = "surge"
+    elif ratio >= 1.6:
+        status = "elevated"
+    else:
+        status = "normal"
+
+    return ratio, status
+
+
 MARITIME_CHOKEPOINTS_CONFIG = [
     {
         "id": "hormuz",
         "name": "Strait of Hormuz",
         "coordinates": [56.25, 26.55],
-        "oil_flow_share": "~20% of global petroleum liquids (~21M bpd)",
+        "traffic_estimate": "Approx. 20-21M bpd (~20% of global petroleum liquids)",
+        "source_citation": "U.S. Energy Information Administration (EIA) 2024 / IMF PortWatch",
+        "source_url": "https://www.eia.gov/international/analysis/special-topics/World_Oil_Transit_Chokepoints",
         "note": "Persian Gulf arterial outlet for Saudi, Iraqi, Kuwaiti, UAE, and Iranian crude exports.",
-        "keywords": ["hormuz", "persian gulf", "strait of hormuz", "fujairah"],
-        "theaters": ["Iran", "Oman", "United Arab Emirates", "Saudi Arabia", "Qatar"],
+        "location_terms": ["hormuz", "strait of hormuz", "persian gulf", "gulf of oman", "fujairah", "bandar abbas", "ras tanura"],
     },
     {
         "id": "bab-el-mandeb",
         "name": "Bab el-Mandeb & Red Sea",
         "coordinates": [43.35, 12.60],
-        "oil_flow_share": "~9% of global seaborne oil (~8.8M bpd)",
-        "note": "Red Sea to Gulf of Aden gateway; critical maritime chokepoint vulnerable to anti-ship strikes.",
-        "keywords": ["bab el-mandeb", "bab al-mandab", "red sea", "gulf of aden", "houthi", "yemen"],
-        "theaters": ["Yemen", "Djibouti", "Saudi Arabia", "Egypt", "Eritrea"],
+        "traffic_estimate": "Approx. 8.8M bpd (~9% of seaborne oil) & ~12% global trade",
+        "source_citation": "U.S. EIA 2023 / UNCTAD Review of Maritime Transport 2023",
+        "source_url": "https://unctad.org/news/red-sea-black-sea-and-panama-canal-geopolitical-conflicts-and-climate-change-threaten-world-trade",
+        "note": "Red Sea to Gulf of Aden gateway; critical maritime chokepoint vulnerable to anti-ship ballistic strikes.",
+        "location_terms": ["bab el-mandeb", "bab al-mandab", "mandeb strait", "red sea", "gulf of aden", "hodeidah", "houthi"],
     },
     {
         "id": "suez",
         "name": "Suez Canal",
         "coordinates": [32.35, 30.70],
-        "oil_flow_share": "~12% of global trade & ~9% seaborne oil",
+        "traffic_estimate": "Approx. 12-15% of global maritime trade & ~22% of container volume",
+        "source_citation": "Suez Canal Authority / UNCTAD 2023",
+        "source_url": "https://unctad.org/publication/review-maritime-transport-2023",
         "note": "Direct link between Mediterranean and Red Sea; reroutes via Cape of Good Hope add 10-14 days transit.",
-        "keywords": ["suez", "suez canal", "cape of good hope"],
-        "theaters": ["Egypt", "Israel"],
+        "location_terms": ["suez", "suez canal", "port said", "great bitter lake"],
     },
     {
         "id": "malacca",
         "name": "Strait of Malacca",
         "coordinates": [100.95, 3.20],
-        "oil_flow_share": "~25% of world maritime trade (~16M bpd crude)",
+        "traffic_estimate": "Approx. 16M bpd crude (~20-25% of global maritime trade)",
+        "source_citation": "U.S. EIA 2023 / UNCTAD 2023",
+        "source_url": "https://www.eia.gov/international/analysis/special-topics/World_Oil_Transit_Chokepoints",
         "note": "Primary conduit connecting Indian Ocean with South China Sea and East Asian manufacturing centers.",
-        "keywords": ["malacca", "strait of malacca", "singapore strait", "south china sea"],
-        "theaters": ["Singapore", "Malaysia", "Indonesia", "China"],
+        "location_terms": ["malacca", "strait of malacca", "singapore strait", "johor strait", "phillip channel"],
     },
     {
         "id": "bosporus",
         "name": "Turkish Straits (Bosporus)",
         "coordinates": [29.05, 41.08],
-        "oil_flow_share": "~3% of global oil transit & Black Sea grain corridor",
+        "traffic_estimate": "Approx. 3M bpd crude (~3% of global oil) & vital grain corridor",
+        "source_citation": "U.S. EIA 2023 / Ministry of Transport Turkey 2023",
+        "source_url": "https://www.eia.gov/international/analysis/special-topics/World_Oil_Transit_Chokepoints",
         "note": "Narrow waterway linking Black Sea to Aegean; vital for Russian, Kazakh crude and regional agriculture.",
-        "keywords": ["bosporus", "bosphorus", "black sea", "dardanelles", "turkish straits"],
-        "theaters": ["Turkey", "Russia", "Ukraine", "Romania"],
+        "location_terms": ["bosporus", "bosphorus", "dardanelles", "turkish straits", "sea of marmara"],
     },
     {
         "id": "gibraltar",
         "name": "Strait of Gibraltar",
         "coordinates": [-5.45, 35.95],
-        "oil_flow_share": "Over 100,000 transit vessels annually",
+        "traffic_estimate": "Approx. 100,000+ vessel transits annually",
+        "source_citation": "Port of Gibraltar / International Maritime Organization (IMO) 2023",
+        "source_url": "https://www.gibraltarport.com",
         "note": "Western threshold to the Mediterranean Basin, linking Atlantic trade to Southern Europe and North Africa.",
-        "keywords": ["gibraltar", "strait of gibraltar"],
-        "theaters": ["Spain", "Morocco", "United Kingdom"],
+        "location_terms": ["gibraltar", "strait of gibraltar", "algeciras"],
     },
     {
         "id": "panama",
         "name": "Panama Canal",
         "coordinates": [-79.55, 9.08],
-        "oil_flow_share": "~5% of global maritime trade (~40% US container traffic)",
+        "traffic_estimate": "Approx. 5% of global maritime trade (~40% of US container traffic)",
+        "source_citation": "Panama Canal Authority (ACP) 2023",
+        "source_url": "https://micanaldepanama.com",
         "note": "Freshwater lock-based passage connecting Atlantic and Pacific; sensitive to drought and draft restrictions.",
-        "keywords": ["panama", "panama canal", "canal transit"],
-        "theaters": ["Panama", "United States"],
+        "location_terms": ["panama canal", "miraflores locks", "gatun lake", "canal transit"],
     },
 ]
+
+MANDATORY_MARITIME_TERMS = (
+    "tanker", "vessel", "ship", "shipping", "navy", "naval", "cargo",
+    "freighter", "container", "bulk carrier", "missile", "drone", "torpedo",
+    "seizure", "seized", "boarding", "boarded", "mine", "blockade", "strait",
+    "transit", "anti-ship", "escort", "maritime", "corridor", "piracy"
+)
 
 
 @router.get("/heatmap", response_model=List[EventHeatmapPointOut])
@@ -817,17 +861,23 @@ async def event_heatmap(
     event_type: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    since_30d = datetime.now(timezone.utc) - timedelta(days=30)
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=days)
+
+    # Strictly non-overlapping baseline period: 30 days immediately preceding the window
+    baseline_start = now - timedelta(days=days + 30)
+    baseline_end = window_start
+
     parsed_event_type = _parse_event_type(event_type) if event_type else None
 
-    # Calculate 30-day baseline per country
+    # Calculate non-overlapping 30-day baseline per country
     baseline_query = (
         select(Event.country, func.count(Event.id))
         .where(
             Event.status.in_(PUBLISHED_EVENT_STATUSES),
             Event.published_at.is_not(None),
-            Event.published_at >= since_30d,
+            Event.published_at >= baseline_start,
+            Event.published_at < baseline_end,
             Event.country.is_not(None),
             ~Event.country.in_(("Unknown", "Global")),
         )
@@ -836,12 +886,12 @@ async def event_heatmap(
     if parsed_event_type:
         baseline_query = baseline_query.where(Event.event_type == parsed_event_type)
     baseline_result = await db.execute(baseline_query)
-    baseline_30d_counts = {c: count for c, count in baseline_result.all() if c}
+    baseline_counts = {c: count for c, count in baseline_result.all() if c}
 
     query = select(Event).where(
         Event.status.in_(PUBLISHED_EVENT_STATUSES),
         Event.published_at.is_not(None),
-        Event.published_at >= since,
+        Event.published_at >= window_start,
         Event.country.is_not(None),
         ~Event.country.in_(("Unknown", "Global")),
     )
@@ -889,9 +939,8 @@ async def event_heatmap(
         avg_confidence = (bucket["confidence_sum"] / bucket["confidence_count"]) if bucket["confidence_count"] else 0.0
         conflict_share = bucket["conflict_count"] / float(count)
 
-        baseline_30d = baseline_30d_counts.get(country, count)
-        expected_window = max(0.4, (float(baseline_30d) / 30.0) * float(days))
-        baseline_ratio = round(count / expected_window, 2)
+        base_count = baseline_counts.get(country, 0)
+        ratio, status = _surge_ratio(count, base_count, days, 30, k=1.0, min_count=3)
 
         points.append(
             EventHeatmapPointOut(
@@ -902,8 +951,9 @@ async def event_heatmap(
                 conflict_share=round(conflict_share, 3),
                 latitude=lat,
                 longitude=lon,
-                baseline_count_30d=baseline_30d,
-                baseline_ratio=baseline_ratio,
+                baseline_count=base_count,
+                baseline_ratio=ratio,
+                baseline_status=status,
             )
         )
 
@@ -915,7 +965,7 @@ async def event_heatmap(
         select(NewsArticle)
         .where(
             NewsArticle.published_at.is_not(None),
-            NewsArticle.published_at >= since,
+            NewsArticle.published_at >= window_start,
         )
         .order_by(NewsArticle.published_at.desc())
         .limit(max(limit * 6, 120))
@@ -926,11 +976,10 @@ async def event_heatmap(
 
 @router.get("/maritime", response_model=List[MaritimeChokepointOut])
 async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
-    """Computes live status (normal / elevated / disrupted), 7d event count,
-    and latest linked headline for the 7 strategic maritime chokepoints."""
+    """Computes transparent, anchored maritime status from events in the last 7 days.
+    Requires BOTH specific waterway location terms AND verified shipping/military terms."""
     since_7d = datetime.now(timezone.utc) - timedelta(days=7)
 
-    # Fetch recent published events in last 7 days
     events_res = await db.execute(
         select(Event)
         .where(
@@ -944,39 +993,50 @@ async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
 
     out: list[MaritimeChokepointOut] = []
     for cp in MARITIME_CHOKEPOINTS_CONFIG:
-        keywords = cp["keywords"]
-        theaters = set(cp["theaters"])
+        location_terms = cp["location_terms"]
 
         matched_events: list[Event] = []
         for e in events:
             text = f"{e.title or ''} {e.description or ''}".lower()
-            keyword_match = any(kw in text for kw in keywords)
-            theater_match = (e.country in theaters) and any(
-                term in text
-                for term in (
-                    "tanker", "ship", "navy", "vessel", "drone", "missile",
-                    "strait", "sea", "canal", "port", "oil", "strike", "maritime", "cargo"
-                )
-            )
-            if keyword_match or theater_match:
-                matched_events.append(e)
+            # 1. Anchored location term match
+            has_location = any(term in text for term in location_terms)
+            if not has_location:
+                continue
+
+            # 2. Mandatory shipping / maritime / military term match
+            has_maritime = any(term in text for term in MANDATORY_MARITIME_TERMS)
+            if not has_maritime:
+                continue
+
+            matched_events.append(e)
 
         count = len(matched_events)
-        has_severe = any((e.severity or 0) >= 4 or e.event_type == EventType.CONFLICT for e in matched_events)
+        has_critical = any(
+            (e.severity or 0) >= 4 and e.event_type == EventType.CONFLICT
+            for e in matched_events
+        )
+
+        # Objective thresholds:
+        # 0-1 events: normal/calm
+        # 2-3 events: elevated watch
+        # 4+ events or verified critical conflict strike: disrupted
         if count == 0:
             status = "normal"
-        elif count >= 3 or has_severe:
+        elif count >= 4 or has_critical:
             status = "disrupted"
-        else:
+        elif count >= 2:
             status = "elevated"
+        else:
+            status = "normal"
 
         latest_headline = matched_events[0].title if matched_events else None
         latest_event_id = matched_events[0].id if matched_events else None
+        trigger_headlines = [e.title for e in matched_events[:4] if e.title]
 
         # Fetch top affected asset tickers for matched events
         top_assets: list[str] = []
         if matched_events:
-            event_ids = [e.id for e in matched_events[:5]]
+            event_ids = [e.id for e in matched_events[:6]]
             assets_res = await db.execute(
                 select(Asset.ticker)
                 .join(EventImpact, EventImpact.asset_id == Asset.id)
@@ -995,12 +1055,15 @@ async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
                 id=cp["id"],
                 name=cp["name"],
                 coordinates=cp["coordinates"],
-                oil_flow_share=cp["oil_flow_share"],
+                traffic_estimate=cp["traffic_estimate"],
+                source_citation=cp["source_citation"],
+                source_url=cp["source_url"],
                 note=cp["note"],
                 status=status,
                 event_count_7d=count,
                 latest_headline=latest_headline,
                 latest_event_id=latest_event_id,
+                trigger_headlines=trigger_headlines,
                 top_assets=top_assets,
             )
         )
@@ -1101,7 +1164,13 @@ async def get_unlocated_events(
 
 
 @router.get("/quality/summary", response_model=QualitySummaryOut)
-async def quality_summary(db: AsyncSession = Depends(get_db)):
+async def quality_summary(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in (UserRole.ADMIN, UserRole.REVIEWER):
+        raise HTTPException(status_code=403, detail="Operator privileges required")
+
     total_reviewed_result = await db.execute(
         select(func.count()).where(EventTrainingExample.review_action.in_(("approve", "reject")))
     )

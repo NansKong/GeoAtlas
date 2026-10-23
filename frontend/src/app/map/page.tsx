@@ -7,32 +7,25 @@ import {
   Anchor,
   ArrowDownRight,
   ArrowUpRight,
-  Camera,
   Check,
   ChevronRight,
   Compass,
   Download,
-  Eye,
   ExternalLink,
-  Filter,
   Globe,
   Globe2,
   Info,
-  Layers,
+  List,
   MapPin,
-  Maximize2,
   Pause,
   Play,
   RotateCcw,
   Search,
   Share2,
-  Shield,
+  ShieldAlert,
   Sliders,
-  TrendingDown,
   TrendingUp,
-  Waves,
   X,
-  Zap,
 } from "lucide-react";
 import type { GeoJSONSource } from "maplibre-gl";
 
@@ -41,6 +34,7 @@ import {
   fetchMaritimeChokepoints,
   fetchUnlocatedEvents,
   fetchEvents,
+  fetchMe,
   type EventHeatmapPoint,
   type MaritimeChokepoint,
   type UnlocatedEventsSummary,
@@ -58,7 +52,7 @@ import {
 import { safeDistanceToNow } from "@/lib/dateUtils";
 
 /* ─── Layer Definitions & Constants ───────────────────────────────────────── */
-type MapLayerId = "baseline_surge" | "conflict" | "energy" | "sanctions" | "elections" | "market";
+type MapLayerId = "baseline_surge" | "conflict" | "energy" | "sanctions" | "elections" | "significance";
 
 interface LayerOption {
   id: MapLayerId;
@@ -72,57 +66,57 @@ const MAP_LAYERS: LayerOption[] = [
   {
     id: "baseline_surge",
     label: "Relative Surge",
-    unit: "Multiple vs 30d Baseline",
-    description: "Calculates current velocity relative to normal activity (e.g. 2.4× normal baseline)",
+    unit: "Laplace Multiple vs Non-Overlapping 30d Baseline",
+    description: "Compares current window velocity against the prior 30-day baseline (smoothed, requires n ≥ 3).",
   },
   {
     id: "conflict",
     label: "Conflict Intensity",
     unit: "% Conflict & Kinetic Share",
-    description: "War, missile strikes, territorial disputes, and kinetic confrontations",
+    description: "War, missile strikes, territorial disputes, and kinetic confrontations.",
     event_type: "conflict",
   },
   {
     id: "energy",
     label: "Energy & Chokepoints",
     unit: "Transit & Infrastructure Risk",
-    description: "Refineries, LNG terminals, pipelines, and strategic maritime corridors",
+    description: "Refineries, LNG terminals, pipelines, and strategic maritime corridors.",
     event_type: "energy_disruption",
   },
   {
     id: "sanctions",
     label: "Sanctions & Trade",
     unit: "Policy Action Density",
-    description: "Tariffs, trade embargoes, export controls, and currency restrictions",
+    description: "Tariffs, trade embargoes, export controls, and currency restrictions.",
     event_type: "sanction",
   },
   {
     id: "elections",
     label: "Elections & Political",
     unit: "Transition Watch",
-    description: "Upcoming legislative and presidential elections with sovereign risk",
+    description: "Upcoming legislative and presidential elections with sovereign risk.",
     event_type: "election",
   },
   {
-    id: "market",
-    label: "Market Impact",
+    id: "significance",
+    label: "Event Significance",
     unit: "Severity × Confidence",
-    description: "Macro events scored by projected financial and asset volatility",
+    description: "Quantifies catalyst gravity based on validated entity severity and extraction confidence.",
   },
 ];
 
 const ASSET_LENSES = [
   { ticker: "", label: "All Assets", icon: "🌐" },
-  { ticker: "USO", label: "Crude / USO", icon: "🛢️", theaterKeywords: ["oil", "tanker", "energy", "hormuz", "red sea", "crude"] },
-  { ticker: "GLD", label: "Gold / GLD", icon: "🥇", theaterKeywords: ["conflict", "war", "sanction", "inflation", "central bank"] },
-  { ticker: "TSM", label: "Semis / TSM", icon: "⚡", theaterKeywords: ["taiwan", "china", "export control", "chips", "semiconductor"] },
-  { ticker: "BTC", label: "Crypto / BTC", icon: "₿", theaterKeywords: ["regulation", "sanctions", "dollar", "liquidity", "crypto"] },
-  { ticker: "LMT", label: "Defense / LMT", icon: "🛡️", theaterKeywords: ["defense", "missile", "nato", "arms", "procurement"] },
-  { ticker: "DXY", label: "Dollar / DXY", icon: "💵", theaterKeywords: ["fed", "rates", "tariffs", "trade", "yield"] },
+  { ticker: "USO", label: "Crude / USO", icon: "🛢️" },
+  { ticker: "GLD", label: "Gold / GLD", icon: "🥇" },
+  { ticker: "TSM", label: "Semis / TSM", icon: "⚡" },
+  { ticker: "BTC", label: "Crypto / BTC", icon: "₿" },
+  { ticker: "LMT", label: "Defense / LMT", icon: "🛡️" },
+  { ticker: "DXY", label: "Dollar / DXY", icon: "💵" },
 ];
 
 const SEARCH_SUGGESTIONS = [
-  { name: "Taiwan Strait", type: "chokepoint", coords: [119.5, 24.0] as [number, number], zoom: 4.8 },
+  { name: "Taiwan Strait", type: "waterway", coords: [119.5, 24.0] as [number, number], zoom: 4.8 },
   { name: "Strait of Hormuz", type: "chokepoint", coords: [56.25, 26.55] as [number, number], zoom: 5.2 },
   { name: "Bab el-Mandeb & Red Sea", type: "chokepoint", coords: [43.35, 12.6] as [number, number], zoom: 5.0 },
   { name: "Suez Canal", type: "chokepoint", coords: [32.35, 30.7] as [number, number], zoom: 5.2 },
@@ -135,6 +129,7 @@ const SEARCH_SUGGESTIONS = [
   { name: "Russia", type: "country", coords: [105.31, 61.52] as [number, number], zoom: 2.2 },
   { name: "United States", type: "country", coords: [-95.71, 37.09] as [number, number], zoom: 2.8 },
   { name: "China", type: "country", coords: [104.19, 35.86] as [number, number], zoom: 2.8 },
+  { name: "Taiwan", type: "country", coords: [120.96, 23.69] as [number, number], zoom: 5.0 },
 ];
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
@@ -145,24 +140,26 @@ function formatPct(v?: number | null) {
   return v == null ? "-" : `${(v * 100).toFixed(1)}%`;
 }
 
-function formatMultiple(ratio?: number | null) {
-  if (ratio == null || ratio <= 0) return "1.0×";
-  return `${ratio.toFixed(1)}×`;
+function formatMultiple(ratio?: number | null, status?: string) {
+  if (status === "building_baseline" || ratio == null) {
+    return "Building baseline";
+  }
+  return `${ratio.toFixed(1)}× normal`;
 }
 
 function getChoroplethHeatValue(point: GlobePoint, layer: MapLayerId): number {
   if (layer === "baseline_surge") {
-    // Relative surge multiple vs baseline (1.0 = normal, 2.0 = 2x normal, 3.5 = spike)
-    const ratio = point.baseline_ratio ?? 1.0;
-    return Math.min(4.0, Math.max(0.0, ratio));
+    if (point.baseline_status === "building_baseline" || point.baseline_ratio == null) {
+      return 0.0; // Render neutral while collecting baseline history
+    }
+    return Math.min(4.0, Math.max(0.0, point.baseline_ratio));
   }
   if (layer === "conflict") {
     return point.conflict_share;
   }
-  if (layer === "market") {
+  if (layer === "significance") {
     return Math.min(1.0, (point.avg_severity / 5.0) * point.avg_confidence);
   }
-  // Count-weighted proxy for energy/sanctions/elections
   return Math.min(1.0, Math.min(point.event_count / 12, 1.0) * 0.7 + (point.avg_severity / 5.0) * 0.3);
 }
 
@@ -231,15 +228,14 @@ function CountryChoroplethLayer({
 
         map.addSource(sourceId, { type: "geojson", data: enriched });
 
-        // Color ramp: standard vs colorblind-safe (Viridis)
         const standardColors = [
           "interpolate",
           ["linear"],
           ["get", "heat_value"],
           0.0, "rgba(15, 23, 42, 0.45)",
           0.8, "rgba(5, 150, 105, 0.4)",
-          1.4, "rgba(217, 119, 6, 0.65)",
-          2.2, "rgba(234, 88, 12, 0.8)",
+          1.5, "rgba(217, 119, 6, 0.65)",
+          2.3, "rgba(234, 88, 12, 0.8)",
           3.2, "rgba(225, 29, 72, 0.95)",
         ];
 
@@ -249,8 +245,8 @@ function CountryChoroplethLayer({
           ["get", "heat_value"],
           0.0, "rgba(68, 1, 84, 0.4)",
           0.8, "rgba(59, 82, 139, 0.55)",
-          1.4, "rgba(33, 145, 140, 0.7)",
-          2.2, "rgba(94, 201, 98, 0.85)",
+          1.5, "rgba(33, 145, 140, 0.7)",
+          2.3, "rgba(94, 201, 98, 0.85)",
           3.2, "rgba(253, 231, 37, 0.95)",
         ];
 
@@ -292,7 +288,6 @@ function CountryChoroplethLayer({
           },
         });
 
-        // Click handler to select country
         map.on("click", fillId, (e) => {
           const feature = e.features?.[0];
           const countryName = feature?.properties?.name;
@@ -406,9 +401,17 @@ function HotspotDot({
   point: GlobePoint;
   onClick: (p: GlobePoint) => void;
 }) {
+  const isBuilding = point.baseline_status === "building_baseline" || point.baseline_ratio == null;
   const surge = point.baseline_ratio ?? 1.0;
-  const isSurge = surge >= 2.0;
-  const color = surge >= 2.5 ? "#f43f5e" : surge >= 1.6 ? "#f59e0b" : "#10b981";
+  const isSurge = !isBuilding && surge >= 2.3;
+  const color = isBuilding
+    ? "#38bdf8"
+    : surge >= 2.5
+    ? "#f43f5e"
+    : surge >= 1.6
+    ? "#f59e0b"
+    : "#10b981";
+
   const size = Math.max(12, Math.min(26, point.event_count * 1.4));
 
   return (
@@ -417,7 +420,7 @@ function HotspotDot({
         <button
           type="button"
           onClick={() => onClick(point)}
-          className="relative flex items-center justify-center focus:outline-none transition-transform hover:scale-125"
+          className="relative flex items-center justify-center focus:outline-none transition-transform hover:scale-125 cursor-pointer"
           style={{ width: size * 2.2, height: size * 2.2 }}
           aria-label={`Hotspot in ${point.country}`}
         >
@@ -458,7 +461,7 @@ function HotspotDot({
               color: color,
             }}
           >
-            {formatMultiple(point.baseline_ratio)} normal
+            {formatMultiple(point.baseline_ratio, point.baseline_status)}
           </span>
         </div>
         <p className="mt-1 text-[11px] text-slate-300 font-medium">
@@ -495,7 +498,7 @@ function ChokepointMarker({
         <button
           type="button"
           onClick={() => onClick(chokepoint)}
-          className="relative flex items-center justify-center p-1 focus:outline-none transition-transform hover:scale-125"
+          className="relative flex items-center justify-center p-1 focus:outline-none transition-transform hover:scale-125 cursor-pointer"
           aria-label={`Maritime chokepoint ${chokepoint.name}`}
         >
           {isAlert && (
@@ -512,7 +515,7 @@ function ChokepointMarker({
           </div>
         </button>
       </MarkerContent>
-      <MarkerTooltip offset={18} className="bg-slate-950 border border-slate-700 text-white shadow-2xl rounded-xl p-3 min-w-[240px]">
+      <MarkerTooltip offset={18} className="bg-slate-950 border border-slate-700 text-white shadow-2xl rounded-xl p-3 max-w-[280px]">
         <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5 mb-1.5">
           <div className="flex items-center gap-1.5">
             <Anchor className="h-3.5 w-3.5 text-cyan-400" />
@@ -525,21 +528,23 @@ function ChokepointMarker({
               color: statusColor,
             }}
           >
-            {chokepoint.status}
+            {chokepoint.status} (Rule-based)
           </span>
         </div>
-        <p className="text-[10px] text-cyan-300 font-medium">{chokepoint.oil_flow_share}</p>
+        <p className="text-[10px] text-cyan-300 font-medium">{chokepoint.traffic_estimate}</p>
         <p className="mt-1 text-[11px] text-slate-300 line-clamp-2">{chokepoint.latest_headline ?? chokepoint.note}</p>
-        {chokepoint.top_assets.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-1">
-            <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Assets:</span>
-            {chokepoint.top_assets.map((ticker) => (
-              <span key={ticker} className="rounded bg-slate-800 border border-slate-700 px-1 py-0.2 text-[9px] font-bold text-amber-300">
-                ${ticker}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="mt-2 text-[9px] text-slate-500">
+          <span>Source: </span>
+          <a
+            href={chokepoint.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-400 hover:text-cyan-400 underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {chokepoint.source_citation}
+          </a>
+        </div>
       </MarkerTooltip>
     </MapMarker>
   );
@@ -551,7 +556,6 @@ function SkeletonGlobe() {
     <div className="relative h-[680px] w-full overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 flex flex-col items-center justify-center p-8">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.08)_0%,transparent_70%)]" />
       <div className="relative flex flex-col items-center">
-        {/* Animated radar rings */}
         <div className="relative flex items-center justify-center h-48 w-48">
           <div className="absolute inset-0 rounded-full border border-emerald-500/20 animate-ping" style={{ animationDuration: "3s" }} />
           <div className="absolute inset-4 rounded-full border border-emerald-500/30 animate-pulse" />
@@ -565,7 +569,7 @@ function SkeletonGlobe() {
             Synthesizing Macro Telemetry
           </p>
           <p className="mt-1.5 text-xs text-slate-400 max-w-sm">
-            Fetching 30-day baseline ratios, live maritime chokepoints, and cross-asset conflict catalysts...
+            Fetching non-overlapping 30-day baseline ratios, anchored maritime chokepoints, and cross-asset links...
           </p>
         </div>
       </div>
@@ -586,7 +590,7 @@ function MapFailureState({ onRetry }: { onRetry: () => void }) {
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold px-4 py-2 text-xs shadow-lg transition-all"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold px-4 py-2 text-xs shadow-lg transition-all cursor-pointer"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Retry Connection
@@ -617,7 +621,7 @@ function LegendOverlay({
           type="button"
           onClick={onToggleColorblind}
           title="Toggle colorblind palette (Viridis)"
-          className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-all ${
+          className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ${
             colorblind
               ? "border-amber-400 bg-amber-400/20 text-amber-300"
               : "border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
@@ -633,8 +637,8 @@ function LegendOverlay({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
             <span>Normal (1.0×)</span>
-            <span>Elevated (2.0×)</span>
-            <span>Surge (3.0×+)</span>
+            <span>Elevated (1.6×)</span>
+            <span>Surge (2.5×+)</span>
           </div>
           <div
             className="h-2.5 w-full rounded-full"
@@ -644,13 +648,16 @@ function LegendOverlay({
                 : "linear-gradient(to right, #059669, #d97706, #ea580c, #f43f5e)",
             }}
           />
+          <p className="text-[9px] text-slate-400 text-center italic">
+            *Countries with &lt; 3 window events marked &quot;Building baseline&quot;
+          </p>
         </div>
       ) : (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
             <span>Low Impact</span>
             <span>Moderate</span>
-            <span>Severe</span>
+            <span>High Severity</span>
           </div>
           <div
             className="h-2.5 w-full rounded-full"
@@ -690,7 +697,7 @@ function TimeReplayBar({
         }
         return prev + 1;
       });
-    }, 750);
+    }, 600);
     return () => clearInterval(interval);
   }, [isPlaying, totalDays, setDayOffset, setIsPlaying]);
 
@@ -711,7 +718,7 @@ function TimeReplayBar({
           }
           setIsPlaying((prev) => !prev);
         }}
-        className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all shadow-md"
+        className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all shadow-md cursor-pointer"
         title={isPlaying ? "Pause timeline replay" : "Play 30-day timeline replay"}
       >
         {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -741,7 +748,7 @@ function TimeReplayBar({
           setIsPlaying(false);
           setDayOffset(totalDays);
         }}
-        className="text-[10px] uppercase font-bold text-slate-400 hover:text-white px-1.5 py-1 rounded bg-slate-800"
+        className="text-[10px] uppercase font-bold text-slate-400 hover:text-white px-1.5 py-1 rounded bg-slate-800 cursor-pointer"
       >
         Reset
       </button>
@@ -749,7 +756,7 @@ function TimeReplayBar({
   );
 }
 
-/* ─── Country Intelligence Drawer ─────────────────────────────────────────── */
+/* ─── Country Intelligence Drawer (Desktop Slide-over / Mobile Bottom Sheet) ── */
 function CountryIntelligenceDrawer({
   country,
   point,
@@ -768,11 +775,12 @@ function CountryIntelligenceDrawer({
     staleTime: 60_000,
   });
 
+  const isBuilding = point?.baseline_status === "building_baseline" || point?.baseline_ratio == null;
   const surge = point?.baseline_ratio ?? 1.0;
-  const isSurge = surge >= 2.0;
+  const isSurge = !isBuilding && surge >= 2.0;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-slate-950 border-l border-slate-800 text-white shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-x-0 bottom-0 max-h-[85vh] sm:inset-y-0 sm:right-0 sm:left-auto sm:max-w-md sm:max-h-full w-full bg-slate-950 border-t sm:border-t-0 sm:border-l border-slate-800 text-white shadow-2xl flex flex-col overflow-hidden z-50 rounded-t-3xl sm:rounded-none animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
       {/* Drawer Header */}
       <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-4">
         <div>
@@ -785,7 +793,8 @@ function CountryIntelligenceDrawer({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
+          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+          aria-label="Close dossier"
         >
           <X className="h-5 w-5" />
         </button>
@@ -796,15 +805,17 @@ function CountryIntelligenceDrawer({
         {/* Baseline Surge Summary Card */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Current Velocity</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Baseline Velocity</span>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-black tracking-wide ${
-                isSurge
+                isBuilding
+                  ? "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                  : isSurge
                   ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
                   : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
               }`}
             >
-              {formatMultiple(point?.baseline_ratio)} NORMAL
+              {formatMultiple(point?.baseline_ratio, point?.baseline_status)}
             </span>
           </div>
 
@@ -814,8 +825,8 @@ function CountryIntelligenceDrawer({
               <p className="text-base font-black text-white">{point?.event_count ?? 0}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-bold">30d Base</p>
-              <p className="text-base font-black text-slate-300">{point?.baseline_count_30d ?? "-"}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-bold">Prior 30d Base</p>
+              <p className="text-base font-black text-slate-300">{point?.baseline_count ?? 0}</p>
             </div>
             <div>
               <p className="text-[10px] text-slate-400 uppercase font-bold">Conflict</p>
@@ -823,11 +834,17 @@ function CountryIntelligenceDrawer({
             </div>
           </div>
 
+          {isBuilding && (
+            <p className="mt-2 text-[10px] text-slate-400 italic text-center">
+              *Requires n ≥ 3 events in window before calculating ratio.
+            </p>
+          )}
+
           {point && point.latitude != null && point.longitude != null && (
             <button
               type="button"
               onClick={() => onFlyTo([point.longitude, point.latitude])}
-              className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 py-2 text-xs font-bold text-white transition-all"
+              className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 py-2 text-xs font-bold text-white transition-all cursor-pointer"
             >
               <Compass className="h-3.5 w-3.5 text-emerald-400" />
               Center Globe on {country}
@@ -938,7 +955,7 @@ function UnlocatedEventsDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-slate-950 border-l border-slate-800 text-white shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-x-0 bottom-0 max-h-[85vh] sm:inset-y-0 sm:right-0 sm:left-auto sm:max-w-lg sm:max-h-full w-full bg-slate-950 border-t sm:border-t-0 sm:border-l border-slate-800 text-white shadow-2xl flex flex-col overflow-hidden z-50 rounded-t-3xl sm:rounded-none animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
       {/* Drawer Header */}
       <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-4">
         <div>
@@ -955,7 +972,7 @@ function UnlocatedEventsDrawer({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
+          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
         >
           <X className="h-5 w-5" />
         </button>
@@ -966,7 +983,7 @@ function UnlocatedEventsDrawer({
         <button
           type="button"
           onClick={() => setActiveTab("all")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
             activeTab === "all" ? "bg-slate-800 text-white border border-slate-700" : "text-slate-400 hover:text-white"
           }`}
         >
@@ -975,7 +992,7 @@ function UnlocatedEventsDrawer({
         <button
           type="button"
           onClick={() => setActiveTab("global")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
             activeTab === "global" ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40" : "text-slate-400 hover:text-white"
           }`}
         >
@@ -984,7 +1001,7 @@ function UnlocatedEventsDrawer({
         <button
           type="button"
           onClick={() => setActiveTab("unknown")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
             activeTab === "unknown" ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "text-slate-400 hover:text-white"
           }`}
         >
@@ -1043,6 +1060,77 @@ function UnlocatedEventsDrawer({
   );
 }
 
+/* ─── Accessible List View ────────────────────────────────────────────────── */
+function AccessibleListView({
+  points,
+  onSelectCountry,
+}: {
+  points: GlobePoint[];
+  onSelectCountry: (c: string) => void;
+}) {
+  return (
+    <div className="h-[680px] w-full overflow-y-auto rounded-[28px] border border-slate-800 bg-slate-950 p-6 text-slate-100">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div>
+          <h2 className="text-base font-bold text-white">Sovereign Telemetry Table</h2>
+          <p className="text-xs text-slate-400">Accessible tabular view of all active monitored countries and baseline ratios.</p>
+        </div>
+        <span className="text-xs font-bold text-emerald-400 font-mono">{points.length} Countries</span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
+              <th className="py-2.5 px-3 font-bold">Country</th>
+              <th className="py-2.5 px-3 font-bold">Window Count</th>
+              <th className="py-2.5 px-3 font-bold">Baseline Ratio</th>
+              <th className="py-2.5 px-3 font-bold">Conflict %</th>
+              <th className="py-2.5 px-3 font-bold">Severity</th>
+              <th className="py-2.5 px-3 font-bold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-850">
+            {points.map((p) => {
+              const isBuilding = p.baseline_status === "building_baseline" || p.baseline_ratio == null;
+              return (
+                <tr key={p.country} className="hover:bg-slate-900/80 transition-colors">
+                  <td className="py-3 px-3 font-bold text-white">{p.country}</td>
+                  <td className="py-3 px-3 font-mono">{p.event_count}</td>
+                  <td className="py-3 px-3">
+                    <span
+                      className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
+                        isBuilding
+                          ? "bg-slate-800 text-slate-300"
+                          : (p.baseline_ratio ?? 1) >= 2.3
+                          ? "bg-rose-500/20 text-rose-400 font-black"
+                          : "bg-emerald-500/20 text-emerald-400 font-semibold"
+                      }`}
+                    >
+                      {formatMultiple(p.baseline_ratio, p.baseline_status)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 font-mono">{formatPct(p.conflict_share)}</td>
+                  <td className="py-3 px-3 font-mono">{p.avg_severity.toFixed(1)}</td>
+                  <td className="py-3 px-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onSelectCountry(p.country)}
+                      className="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-1 text-xs font-bold text-emerald-400 transition-all cursor-pointer"
+                    >
+                      Inspect Dossier
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Macro Map Page ─────────────────────────────────────────────────── */
 export default function MacroMapPage() {
   const [days, setDays] = useState(14);
@@ -1050,6 +1138,7 @@ export default function MacroMapPage() {
   const [assetLens, setAssetLens] = useState("");
   const [projectionMode, setProjectionMode] = useState<"globe" | "mercator">("globe");
   const [colorblindMode, setColorblindMode] = useState(false);
+  const [isListView, setIsListView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -1060,12 +1149,25 @@ export default function MacroMapPage() {
   const [dayOffset, setDayOffset] = useState(14);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // URL state synchronization
+  // Operator Auth status check
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: fetchMe,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  const isOperator = me?.role === "admin" || me?.role === "reviewer";
+
+  // URL state synchronization with URI decoding
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const urlDays = params.get("days");
-    if (urlDays) setDays(Number(urlDays));
+    if (urlDays) {
+      const parsedDays = Number(urlDays);
+      setDays(parsedDays);
+      setDayOffset(parsedDays);
+    }
     const urlLayer = params.get("layer") as MapLayerId;
     if (urlLayer && MAP_LAYERS.some((l) => l.id === urlLayer)) setActiveLayerId(urlLayer);
     const urlAsset = params.get("asset");
@@ -1073,7 +1175,10 @@ export default function MacroMapPage() {
     const urlProj = params.get("proj");
     if (urlProj === "flat") setProjectionMode("mercator");
     const urlCountry = params.get("country");
-    if (urlCountry) setSelectedCountry(urlCountry);
+    if (urlCountry) {
+      const decodedCountry = decodeURIComponent(urlCountry);
+      setSelectedCountry(decodedCountry);
+    }
   }, []);
 
   const updateUrlState = useCallback(
@@ -1141,15 +1246,13 @@ export default function MacroMapPage() {
   // Asset lens filtering
   const filteredPlotted = useMemo(() => {
     if (!assetLens) return plotted;
-    const lensConfig = ASSET_LENSES.find((l) => l.ticker === assetLens);
-    if (!lensConfig || !lensConfig.theaterKeywords) return plotted;
-    // Highlight countries matching theater keywords or elevated activity
     return plotted;
   }, [plotted, assetLens]);
 
   const topSurges = useMemo(() => {
     return [...plotted]
-      .sort((a, b) => (b.baseline_ratio ?? 1.0) - (a.baseline_ratio ?? 1.0))
+      .filter((p) => p.baseline_status !== "building_baseline" && p.baseline_ratio != null)
+      .sort((a, b) => (b.baseline_ratio ?? 0) - (a.baseline_ratio ?? 0))
       .slice(0, 6);
   }, [plotted]);
 
@@ -1164,7 +1267,7 @@ export default function MacroMapPage() {
     [mapInstance]
   );
 
-  // Search autocomplete matches
+  // Autocomplete search suggestions
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
@@ -1180,19 +1283,41 @@ export default function MacroMapPage() {
     return [...suggestions, ...countryMatches].slice(0, 6);
   }, [searchQuery, plotted]);
 
-  // Export as PNG
+  // Robust PNG Export drawing attribution watermark into composite canvas
   const handleExportPNG = useCallback(() => {
     if (!mapInstance) return;
     try {
-      const canvas = mapInstance.getCanvas();
+      const glCanvas = mapInstance.getCanvas();
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = glCanvas.width;
+      exportCanvas.height = glCanvas.height;
+      const ctx = exportCanvas.getContext("2d");
+      if (!ctx) return;
+
+      // Draw map
+      ctx.drawImage(glCanvas, 0, 0);
+
+      // Draw watermark & branding bar
+      ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+      ctx.fillRect(0, exportCanvas.height - 48, exportCanvas.width, 48);
+
+      ctx.fillStyle = "#10b981";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("GeoAtlas Macro Intelligence", 24, exportCanvas.height - 20);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "12px sans-serif";
+      const meta = `${activeLayer.label} (${days}d window) · © OpenStreetMap · CartoDB · ${new Date().toISOString().slice(0, 10)}`;
+      ctx.fillText(meta, 270, exportCanvas.height - 21);
+
       const link = document.createElement("a");
       link.download = `geoatlas-macro-globe-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = exportCanvas.toDataURL("image/png");
       link.click();
     } catch (err) {
       console.error("Export PNG failed:", err);
     }
-  }, [mapInstance]);
+  }, [mapInstance, activeLayer.label, days]);
 
   // Copy share URL
   const [copiedShare, setCopiedShare] = useState(false);
@@ -1218,11 +1343,11 @@ export default function MacroMapPage() {
                 <h1 className="text-xl font-black tracking-tight text-white">GeoAtlas Macro Globe</h1>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  Live Geopolitical Feed
+                  Live Feed
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-slate-400">
-                Interactive MapLibre globe with relative-to-baseline surge telemetry, maritime chokepoints, and cross-asset links.
+                Non-overlapping baseline surge velocity, anchored maritime corridors, and cross-asset links.
               </p>
             </div>
           </div>
@@ -1233,7 +1358,7 @@ export default function MacroMapPage() {
               <Search className="absolute left-3.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search country, chokepoint (e.g. Hormuz, Red Sea), or ticker..."
+                placeholder="Search country, waterway (e.g. Hormuz, Red Sea), or ticker..."
                 value={searchQuery}
                 onFocus={() => setIsSearchOpen(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1243,7 +1368,7 @@ export default function MacroMapPage() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 text-slate-400 hover:text-white text-xs"
+                  className="absolute right-3 text-slate-400 hover:text-white text-xs cursor-pointer"
                 >
                   ✕
                 </button>
@@ -1263,10 +1388,10 @@ export default function MacroMapPage() {
                       setIsSearchOpen(false);
                       setSearchQuery("");
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-semibold text-slate-200 hover:bg-slate-800 transition-all"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-semibold text-slate-200 hover:bg-slate-800 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
-                      {item.type === "chokepoint" ? (
+                      {item.type === "chokepoint" || item.type === "waterway" ? (
                         <Anchor className="h-3.5 w-3.5 text-cyan-400" />
                       ) : (
                         <MapPin className="h-3.5 w-3.5 text-emerald-400" />
@@ -1284,14 +1409,29 @@ export default function MacroMapPage() {
 
           {/* Action Tools */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Accessible List View / Globe Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsListView((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                isListView
+                  ? "border-emerald-500 bg-emerald-500/20 text-emerald-300"
+                  : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
+              }`}
+              title="Toggle accessible tabular list view"
+            >
+              <List className="h-3.5 w-3.5 text-emerald-400" />
+              <span>{isListView ? "Globe View" : "List View"}</span>
+            </button>
+
             {/* Unlocated / Global Events Chip */}
             <button
               type="button"
               onClick={() => setIsUnlocatedOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-950/30 hover:bg-cyan-900/40 px-3.5 py-1.5 text-xs font-bold text-cyan-300 transition-all shadow-sm"
+              className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-950/30 hover:bg-cyan-900/40 px-3.5 py-1.5 text-xs font-bold text-cyan-300 transition-all shadow-sm cursor-pointer"
             >
               <Compass className="h-3.5 w-3.5 text-cyan-400" />
-              <span>Unlocated & Global ({unlocatedSummary?.total_unlocated ?? 135})</span>
+              <span>Unlocated &amp; Global ({unlocatedSummary?.total_unlocated ?? 135})</span>
             </button>
 
             {/* 3D Globe vs 2D Flat Toggle */}
@@ -1302,7 +1442,7 @@ export default function MacroMapPage() {
                 setProjectionMode(next);
                 updateUrlState({ proj: next === "mercator" ? "flat" : undefined });
               }}
-              className="flex items-center gap-1.5 rounded-full border border-slate-800 bg-slate-900 hover:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-300 transition-all"
+              className="flex items-center gap-1.5 rounded-full border border-slate-800 bg-slate-900 hover:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-300 transition-all cursor-pointer"
               title="Toggle between 3D Globe and 2D Mercator Projection"
             >
               <Globe2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -1313,8 +1453,8 @@ export default function MacroMapPage() {
             <button
               type="button"
               onClick={handleExportPNG}
-              className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900 hover:bg-slate-800 p-2 text-slate-300 hover:text-white transition-all"
-              title="Download Snapshot as PNG"
+              className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900 hover:bg-slate-800 p-2 text-slate-300 hover:text-white transition-all cursor-pointer"
+              title="Download Snapshot as PNG (includes attribution)"
             >
               <Download className="h-4 w-4" />
             </button>
@@ -1323,7 +1463,7 @@ export default function MacroMapPage() {
             <button
               type="button"
               onClick={handleShareLink}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                 copiedShare
                   ? "border-emerald-500 bg-emerald-500/20 text-emerald-300"
                   : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
@@ -1334,15 +1474,17 @@ export default function MacroMapPage() {
               <span>{copiedShare ? "Copied!" : "Share"}</span>
             </button>
 
-            {/* Internal Operator Review Link */}
-            <a
-              href="/review"
-              className="flex items-center gap-1 rounded-full border border-slate-800/80 bg-slate-900/50 hover:bg-slate-800 px-3 py-1.5 text-[11px] font-semibold text-slate-400 hover:text-slate-200 transition-all"
-              title="Access internal review queue & NLP latency telemetry"
-            >
-              <span>Operator QA</span>
-              <ChevronRight className="h-3 w-3 text-slate-500" />
-            </a>
+            {/* Operator Review Link: STRICTLY GATED TO ADMIN / REVIEWER */}
+            {isOperator && (
+              <a
+                href="/review"
+                className="flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/30 hover:bg-emerald-900/40 px-3 py-1.5 text-[11px] font-bold text-emerald-300 transition-all"
+                title="Access internal review queue & NLP latency telemetry"
+              >
+                <span>Operator QA</span>
+                <ChevronRight className="h-3 w-3 text-emerald-400" />
+              </a>
+            )}
           </div>
         </header>
 
@@ -1360,7 +1502,7 @@ export default function MacroMapPage() {
                   setDayOffset(w);
                   updateUrlState({ days: w });
                 }}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+                className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
                   days === w
                     ? "bg-emerald-500 text-slate-950 font-black shadow-[0_0_12px_rgba(16,185,129,0.4)]"
                     : "text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -1382,7 +1524,7 @@ export default function MacroMapPage() {
                   setActiveLayerId(layer.id);
                   updateUrlState({ layer: layer.id });
                 }}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
+                className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
                   activeLayerId === layer.id
                     ? "bg-slate-100 text-slate-950 font-black shadow-md"
                     : "border border-slate-800 bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -1404,7 +1546,7 @@ export default function MacroMapPage() {
                   setAssetLens(al.ticker);
                   updateUrlState({ asset: al.ticker || undefined });
                 }}
-                className={`rounded-full px-2.5 py-1 text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`rounded-full px-2.5 py-1 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   assetLens === al.ticker
                     ? "bg-amber-400 text-slate-950 font-black shadow-[0_0_10px_rgba(251,191,36,0.4)]"
                     : "border border-slate-800 bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -1433,90 +1575,100 @@ export default function MacroMapPage() {
                 </span>
                 {assetLens && (
                   <span className="rounded bg-amber-400/20 border border-amber-400/40 px-2 py-0.5 text-[10px] font-black text-amber-300">
-                    Lens: ${assetLens}
+                    Rule-Grounded Lens: ${assetLens}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] uppercase font-bold text-slate-400">
-                  {maritimeChokepoints.length} Maritime Chokepoints Monitored
+                  {maritimeChokepoints.length} Anchored Maritime Corridors
                 </span>
               </div>
             </div>
 
-            {/* Map Canvas / Globe Canvas */}
-            <div className="relative h-[680px] w-full">
-              {isHeatmapError ? (
-                <MapFailureState onRetry={() => refetchHeatmap()} />
-              ) : isHeatmapLoading && !mapInstance ? (
-                <SkeletonGlobe />
-              ) : (
-                <>
-                  <MapComponent
-                    ref={(ref) => setMapInstance(ref)}
-                    theme="dark"
-                    center={[20, 24]}
-                    zoom={1.5}
-                    minZoom={0.8}
-                    maxZoom={6.5}
-                    renderWorldCopies={false}
-                    projection={{ type: projectionMode } as any}
-                  >
-                    <MapControls position="bottom-right" showZoom showFullscreen />
+            {/* Viewport Body: List View or Globe View */}
+            {isListView ? (
+              <AccessibleListView
+                points={filteredPlotted}
+                onSelectCountry={(c) => {
+                  setSelectedCountry(c);
+                  updateUrlState({ country: c });
+                }}
+              />
+            ) : (
+              <div className="relative h-[680px] w-full">
+                {isHeatmapError ? (
+                  <MapFailureState onRetry={() => refetchHeatmap()} />
+                ) : isHeatmapLoading && !mapInstance ? (
+                  <SkeletonGlobe />
+                ) : (
+                  <>
+                    <MapComponent
+                      ref={(ref) => setMapInstance(ref)}
+                      theme="dark"
+                      center={[20, 24]}
+                      zoom={1.5}
+                      minZoom={0.8}
+                      maxZoom={6.5}
+                      renderWorldCopies={false}
+                      projection={{ type: projectionMode } as any}
+                    >
+                      <MapControls position="bottom-right" showZoom showFullscreen />
 
-                    {/* Layers */}
-                    <HeatmapGlowLayer points={filteredPlotted} />
-                    <CountryChoroplethLayer
-                      points={filteredPlotted}
-                      activeLayer={activeLayerId}
-                      colorblindMode={colorblindMode}
-                      selectedCountry={selectedCountry}
-                      onSelectCountry={(c) => {
-                        setSelectedCountry(c);
-                        updateUrlState({ country: c });
-                      }}
-                    />
-
-                    {/* Hotspot Markers */}
-                    {filteredPlotted.map((p) => (
-                      <HotspotDot
-                        key={p.country}
-                        point={p}
-                        onClick={(pt) => {
-                          setSelectedCountry(pt.country);
-                          updateUrlState({ country: pt.country });
+                      {/* Layers */}
+                      <HeatmapGlowLayer points={filteredPlotted} />
+                      <CountryChoroplethLayer
+                        points={filteredPlotted}
+                        activeLayer={activeLayerId}
+                        colorblindMode={colorblindMode}
+                        selectedCountry={selectedCountry}
+                        onSelectCountry={(c) => {
+                          setSelectedCountry(c);
+                          updateUrlState({ country: c });
                         }}
                       />
-                    ))}
 
-                    {/* Maritime Chokepoints with Live Status Beacons */}
-                    {maritimeChokepoints.map((cp) => (
-                      <ChokepointMarker
-                        key={cp.id}
-                        chokepoint={cp}
-                        onClick={(c) => flyTo(c.coordinates, 4.8)}
-                      />
-                    ))}
-                  </MapComponent>
+                      {/* Hotspot Markers */}
+                      {filteredPlotted.map((p) => (
+                        <HotspotDot
+                          key={p.country}
+                          point={p}
+                          onClick={(pt) => {
+                            setSelectedCountry(pt.country);
+                            updateUrlState({ country: pt.country });
+                          }}
+                        />
+                      ))}
 
-                  {/* Dynamic Layer Legend */}
-                  <LegendOverlay
-                    layer={activeLayer}
-                    colorblind={colorblindMode}
-                    onToggleColorblind={() => setColorblindMode((v) => !v)}
-                  />
+                      {/* Maritime Chokepoints with Anchored Location Matching */}
+                      {maritimeChokepoints.map((cp) => (
+                        <ChokepointMarker
+                          key={cp.id}
+                          chokepoint={cp}
+                          onClick={(c) => flyTo(c.coordinates, 4.8)}
+                        />
+                      ))}
+                    </MapComponent>
 
-                  {/* 30-Day Time Replay Slider */}
-                  <TimeReplayBar
-                    dayOffset={dayOffset}
-                    setDayOffset={setDayOffset}
-                    isPlaying={isPlaying}
-                    setIsPlaying={setIsPlaying}
-                    totalDays={days}
-                  />
-                </>
-              )}
-            </div>
+                    {/* Dynamic Layer Legend */}
+                    <LegendOverlay
+                      layer={activeLayer}
+                      colorblind={colorblindMode}
+                      onToggleColorblind={() => setColorblindMode((v) => !v)}
+                    />
+
+                    {/* 30-Day Time Replay Slider (Client-Side Non-Refetching) */}
+                    <TimeReplayBar
+                      dayOffset={dayOffset}
+                      setDayOffset={setDayOffset}
+                      isPlaying={isPlaying}
+                      setIsPlaying={setIsPlaying}
+                      totalDays={days}
+                    />
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Bottom Status Ribbon with Legal Credits */}
             <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/90 backdrop-blur-md px-5 py-2.5 text-[11px] text-slate-500 font-medium">
@@ -1547,7 +1699,7 @@ export default function MacroMapPage() {
                   </h2>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  7-Day Transit Telemetry
+                  Anchored Waterway Terms
                 </span>
               </div>
 
@@ -1568,26 +1720,62 @@ export default function MacroMapPage() {
                       : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
 
                   return (
-                    <button
+                    <div
                       key={cp.id}
-                      type="button"
-                      onClick={() => flyTo(cp.coordinates, 4.8)}
-                      className={`w-full rounded-2xl border p-3 text-left transition-all block ${statusBg}`}
+                      className={`w-full rounded-2xl border p-3.5 transition-all ${statusBg}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs text-white">{cp.name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">({cp.oil_flow_share.split("(")[0]})</span>
+                          <button
+                            type="button"
+                            onClick={() => flyTo(cp.coordinates, 4.8)}
+                            className="font-bold text-xs text-white hover:text-cyan-400 underline decoration-dotted text-left cursor-pointer"
+                          >
+                            {cp.name}
+                          </button>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            ({cp.traffic_estimate.split("(")[0].trim()})
+                          </span>
                         </div>
                         <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${badgeBg}`}>
                           {cp.status}
                         </span>
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-300 line-clamp-1 leading-snug">
-                        {cp.latest_headline ?? cp.note}
-                      </p>
+
+                      {/* Source Citation */}
+                      <div className="mt-1 text-[10px] text-slate-400 flex items-center justify-between">
+                        <span>{cp.traffic_estimate}</span>
+                        <a
+                          href={cp.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-400 hover:underline flex items-center gap-0.5 font-semibold"
+                        >
+                          <span>{cp.source_citation.split("/")[0].trim()}</span>
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </div>
+
+                      {/* Trigger headlines or latest news */}
+                      <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1">
+                        <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">
+                          {cp.trigger_headlines.length > 0 ? "Triggering Headlines (Rule-Based):" : "Latest Headline:"}
+                        </p>
+                        {cp.trigger_headlines.length > 0 ? (
+                          cp.trigger_headlines.map((hl, i) => (
+                            <p key={i} className="text-[11px] text-slate-200 line-clamp-1 leading-snug">
+                              • {hl}
+                            </p>
+                          ))
+                        ) : (
+                          <p className="text-[11px] text-slate-400 line-clamp-1 italic">
+                            {cp.latest_headline ?? cp.note}
+                          </p>
+                        )}
+                      </div>
+
                       {cp.top_assets.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
+                        <div className="mt-2 flex flex-wrap gap-1">
                           {cp.top_assets.map((ticker) => (
                             <span key={ticker} className="rounded bg-slate-800 px-1.5 py-0.2 text-[9px] font-bold text-amber-300 font-mono">
                               ${ticker}
@@ -1595,7 +1783,7 @@ export default function MacroMapPage() {
                           ))}
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1611,13 +1799,15 @@ export default function MacroMapPage() {
                   </h2>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  Relative Multiple
+                  Smoothed (n ≥ 3)
                 </span>
               </div>
 
               <div className="space-y-2">
                 {topSurges.length === 0 ? (
-                  <p className="text-xs text-slate-500">No surge deviations detected in current window.</p>
+                  <p className="text-xs text-slate-500">
+                    No verified surges detected (countries with n &lt; 3 marked as building baseline).
+                  </p>
                 ) : (
                   topSurges.map((r) => (
                     <button
@@ -1628,7 +1818,7 @@ export default function MacroMapPage() {
                         setSelectedCountry(r.country);
                         updateUrlState({ country: r.country });
                       }}
-                      className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 p-3 text-left transition-all"
+                      className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 p-3 text-left transition-all cursor-pointer"
                     >
                       <div>
                         <p className="font-bold text-xs text-white">{r.country}</p>
@@ -1638,9 +1828,9 @@ export default function MacroMapPage() {
                       </div>
                       <div className="text-right">
                         <span className="rounded-lg bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-xs font-black text-rose-400">
-                          {formatMultiple(r.baseline_ratio)}
+                          {formatMultiple(r.baseline_ratio, r.baseline_status)}
                         </span>
-                        <p className="text-[8px] uppercase tracking-wider text-slate-500 mt-0.5 font-bold">vs 30d base</p>
+                        <p className="text-[8px] uppercase tracking-wider text-slate-500 mt-0.5 font-bold">vs prior 30d base</p>
                       </div>
                     </button>
                   ))
@@ -1672,7 +1862,7 @@ export default function MacroMapPage() {
                       setSelectedCountry(r.country);
                       updateUrlState({ country: r.country });
                     }}
-                    className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 p-3 text-left transition-all"
+                    className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 p-3 text-left transition-all cursor-pointer"
                   >
                     <div>
                       <p className="font-bold text-xs text-white">{r.country}</p>
@@ -1691,7 +1881,7 @@ export default function MacroMapPage() {
         </div>
       </div>
 
-      {/* Country Intelligence Slide-Over Drawer */}
+      {/* Country Intelligence Slide-Over Drawer (Responsive Bottom Sheet on Mobile) */}
       {selectedCountry && (
         <CountryIntelligenceDrawer
           country={selectedCountry}

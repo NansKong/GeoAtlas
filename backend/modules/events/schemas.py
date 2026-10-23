@@ -87,21 +87,26 @@ class EventHeatmapPointOut(BaseModel):
     conflict_share: float
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    baseline_count_30d: Optional[int] = None
+    baseline_count: Optional[int] = None
     baseline_ratio: Optional[float] = None
+    baseline_status: str = "normal"  # "surge" | "elevated" | "normal" | "building_baseline"
 
 
 class MaritimeChokepointOut(BaseModel):
     id: str
     name: str
     coordinates: List[float]
-    oil_flow_share: str
+    traffic_estimate: str
+    source_citation: str
+    source_url: str
     note: str
     status: str  # "normal" | "elevated" | "disrupted"
     event_count_7d: int
     latest_headline: Optional[str] = None
     latest_event_id: Optional[uuid.UUID] = None
+    trigger_headlines: List[str] = []
     top_assets: List[str] = []
+    methodology: str = "Rule-based: Anchored waterway place terms + verified shipping/military terms"
 
 
 class UnlocatedEventsSummaryOut(BaseModel):

@@ -500,9 +500,15 @@ function ContextCard({
 function GateState({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-4 text-center">
-      <ShieldAlert className="mb-4 h-14 w-14 text-gray-200" />
-      <h1 className="text-xl font-semibold text-gray-600">{title}</h1>
-      <p className="mt-2 text-sm text-gray-400">{detail}</p>
+      <ShieldAlert className="mb-4 h-14 w-14 text-gray-300" />
+      <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
+      <p className="mt-2 text-sm text-gray-500">{detail}</p>
+      <a
+        href="/login?next=/review"
+        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all"
+      >
+        Sign in to Review Queue
+      </a>
     </div>
   );
 }

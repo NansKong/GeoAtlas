@@ -181,9 +181,11 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       style: initialStyle,
       renderWorldCopies: false,
       attributionControl: { compact: true },
+      preserveDrawingBuffer: true,
+      cooperativeGestures: true,
       ...props,
       ...viewport,
-    });
+    } as any);
 
     const styleDataHandler = () => {
       clearStyleTimeout();

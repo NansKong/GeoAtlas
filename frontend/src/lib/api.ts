@@ -286,21 +286,26 @@ export interface EventHeatmapPoint {
   conflict_share: number;
   latitude?: number;
   longitude?: number;
-  baseline_count_30d?: number;
-  baseline_ratio?: number;
+  baseline_count?: number;
+  baseline_ratio?: number | null;
+  baseline_status?: "surge" | "elevated" | "normal" | "building_baseline";
 }
 
 export interface MaritimeChokepoint {
   id: string;
   name: string;
   coordinates: [number, number];
-  oil_flow_share: string;
+  traffic_estimate: string;
+  source_citation: string;
+  source_url: string;
   note: string;
   status: "normal" | "elevated" | "disrupted";
   event_count_7d: number;
   latest_headline?: string | null;
   latest_event_id?: string | null;
+  trigger_headlines: string[];
   top_assets: string[];
+  methodology: string;
 }
 
 export interface UnlocatedEventsSummary {
