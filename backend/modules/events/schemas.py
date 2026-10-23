@@ -42,6 +42,8 @@ class AffectedAssetOut(BaseModel):
     impact_direction: str
     impact_strength: Optional[float] = None
     confidence_score: Optional[float] = None
+    rationale: Optional[str] = None
+    magnitude: Optional[str] = None
 
 
 class EventOut(BaseModel):

@@ -99,7 +99,17 @@ NAME_ALIAS_MAP: dict[str, str] = {
     "COINBASE": "COIN",
     "META": "META",
     "FACEBOOK": "META",
+    # Macro indices & FX proxies
+    "DXY": "DX-Y.NYB",
+    "DOLLAR INDEX": "DX-Y.NYB",
+    "US DOLLAR": "DX-Y.NYB",
+    "VIX": "^VIX",
+    "VOLATILITY": "^VIX",
+    "SPX": "^GSPC",
+    "S&P 500": "SPY",
 }
+
+JUNK_TICKERS_BLACKLIST = {"AKPJS", "APYI"}
 
 
 def _escape_like(value: str) -> str:
@@ -129,6 +139,10 @@ YAHOO_QUOTE_TYPE_MAP: dict[str, AssetType] = {
 def _yahoo_symbol(ticker: str, asset_type: AssetType) -> str:
     """Map an internal ticker to the symbol Yahoo Finance expects."""
     t = ticker.upper().replace("/", "")
+    if t in {"DXY", "DX-Y.NYB"}:
+        return "DX-Y.NYB"
+    if t in {"^VIX", "VIX"}:
+        return "^VIX"
     if asset_type == AssetType.CRYPTO:
         return t if t.endswith("-USD") else f"{t}-USD"
     if asset_type == AssetType.FOREX:
@@ -192,7 +206,14 @@ async def _get_asset_or_404(db: AsyncSession, ticker: str) -> Asset:
     clean_query = ticker.strip()
     ticker_upper = clean_query.upper()
 
-    # 0. Common name alias lookup (e.g. "amazon" -> "AMZN", "silver" -> "SLV")
+    # Reject known junk or placeholder instruments
+    if ticker_upper in JUNK_TICKERS_BLACKLIST:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Asset '{ticker_upper}' is an unverified or delisted placeholder instrument.",
+        )
+
+    # 0. Common name alias lookup (e.g. "amazon" -> "AMZN", "silver" -> "SLV", "DXY" -> "DX-Y.NYB")
     if ticker_upper in NAME_ALIAS_MAP:
         ticker_upper = NAME_ALIAS_MAP[ticker_upper]
 
@@ -232,11 +253,14 @@ async def _get_asset_or_404(db: AsyncSession, ticker: str) -> Asset:
                 results = resp.json().get("results", [])
                 if results and results[0].get("ticker"):
                     found_ticker = results[0]["ticker"].upper()
-                    result = await db.execute(select(Asset).where(Asset.ticker == found_ticker))
-                    existing = result.scalar_one_or_none()
-                    if existing:
-                        return existing
-                    ticker_upper = found_ticker
+                    # CRITICAL FIX: Require exact ticker match.
+                    # Never let a fuzzy search hit (like AKPJS matching 'DXY') overwrite the requested ticker!
+                    if found_ticker == ticker_upper and found_ticker not in JUNK_TICKERS_BLACKLIST:
+                        result = await db.execute(select(Asset).where(Asset.ticker == found_ticker))
+                        existing = result.scalar_one_or_none()
+                        if existing:
+                            return existing
+                        ticker_upper = found_ticker
         except Exception as exc:
             logger.debug("Polygon search failed for '%s': %s", clean_query, exc)
 
@@ -688,8 +712,11 @@ async def _fundamentals_from_finnhub(ticker: str) -> Optional[dict]:
         metric = payload.get("metric") or {}
         if not metric:
             return None
+        raw_cap = _safe_float(metric.get("marketCapitalization"))
+        # Finnhub marketCapitalization is reported in Millions of USD. Scale to raw dollars for unit consistency.
+        scaled_market_cap = raw_cap * 1_000_000.0 if raw_cap is not None else None
         return {
-            "market_cap": _safe_float(metric.get("marketCapitalization")),
+            "market_cap": scaled_market_cap,
             "pe_ratio": _safe_float(metric.get("peTTM")),
             "eps": _safe_float(metric.get("epsTTM")),
             "dividend_yield": _safe_float(metric.get("dividendYieldIndicatedAnnual")),

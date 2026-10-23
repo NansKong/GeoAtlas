@@ -52,7 +52,7 @@ export function MarketOverviewLayer() {
   >("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTicker, setActiveTicker] = useState<string>("NVDA");
-  const [sortBy, setSortBy] = useState<SortOption>("Default");
+  const [sortBy, setSortBy] = useState<SortOption>("Event-Driven Movers");
   const [now, setNow] = useState(new Date());
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);

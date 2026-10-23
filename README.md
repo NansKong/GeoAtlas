@@ -26,13 +26,17 @@ graph TD
         Caddy -->|HTTP :7860| FastAPIDocker["Docker: geoatlas<br>FastAPI + Market Stream Worker"]
         CeleryWorker["Docker: geoatlas-worker<br>Celery Background Consumer"]
         CeleryBeat["Docker: geoatlas-beat<br>Celery Periodic Scheduler"]
+        RedisDocker["Docker: geoatlas-redis<br>Redis 7 Alpine (:6379, AOF, Auth)"]
+        PostgresDocker["Docker: geoatlas-postgres<br>PostgreSQL 17 Alpine (:5432, Persistent Storage)"]
+        
+        FastAPIDocker <-->|geoatlas-network| RedisDocker
+        CeleryWorker <-->|geoatlas-network| RedisDocker
+        CeleryBeat <-->|geoatlas-network| RedisDocker
+        FastAPIDocker <-->|geoatlas-network| PostgresDocker
+        CeleryWorker <-->|geoatlas-network| PostgresDocker
     end
     
     subgraph "External Cloud Services"
-        FastAPIDocker -->|Pooled PostgreSQL :6543| Supabase["Supabase PostgreSQL (PgBouncer)"]
-        CeleryWorker -->|Pooled PostgreSQL :6543| Supabase
-        CeleryWorker -->|TLS rediss:// :6379| Upstash["Upstash Redis (Broker & Results)"]
-        CeleryBeat -->|TLS rediss:// :6379| Upstash
         FastAPIDocker -->|Real-time Quotes| MarketAPIs["Market Providers (Yahoo, Alpaca, Polygon, TwelveData)"]
         CeleryWorker -->|News Ingestion| NewsAPIs["News Sources (Google News, BBC, NYT, Al Jazeera, Reuters)"]
     end
@@ -50,11 +54,22 @@ GeoAtlas is engineered as a **modular monolith** with asynchronous, event-driven
    - Sanitizes text, strips markup, and hashes content (`SHA-256`) for deduplication.
    - Executes multi-stage NLP gating (language validation, keyword relevance scoring, event extraction, and sentiment calculation).
    - Dynamically links events to assets via Knowledge Graph expansion (L1 direct mentions, L2 sector links).
+   - Executes automated daily database cleanup (`workers.cleanup.purge_old_data`) to prevent bloat.
 
 3. **Celery Beat Scheduler (`geoatlas-beat` container)**:
-   - Dispatches recurring cron schedules (RSS ingestion every 10 min, article event extraction every 5 min, rolling feature computation every 3 min).
+   - Dispatches recurring cron schedules (RSS ingestion every 10 min, article event extraction every 5 min, rolling feature computation every 3 min, daily 30-day database retention purge at 02:30 UTC).
 
-4. **Caddy Reverse Proxy**:
+4. **Redis Service (`geoatlas-redis` container)**:
+   - High-performance in-memory cache and task broker on isolated Docker bridge network (`geoatlas-network`).
+   - Append-Only File (`AOF`) logging with persistent host volume mount (`~/redis-data:/data`).
+   - Zero-latency loopback connection (< 0.5ms) replacing external rate-limited cloud brokers.
+
+5. **PostgreSQL Service (`geoatlas-postgres` container)**:
+   - Dedicated PostgreSQL 17 Alpine instance attached to `geoatlas-network`.
+   - Host persistent volume mount (`~/postgres-data:/var/lib/postgresql/data`) utilizing 30 GB NVMe storage.
+   - Sub-millisecond query latency (< 1ms) with zero cloud egress fees or database size caps.
+
+6. **Caddy Reverse Proxy**:
    - Manages automated Let's Encrypt SSL/TLS certificates via wildcard DNS (`137.23.43.48.sslip.io`).
    - Handles HTTP/2, HTTP/3, and automatic WebSocket protocol upgrading (`wss://`).
 
@@ -64,8 +79,8 @@ GeoAtlas is engineered as a **modular monolith** with asynchronous, event-driven
 
 ### Backend & Machine Learning
 * **Language & Framework:** Python 3.11+, FastAPI, SQLAlchemy (Asyncio), Pydantic v2
-* **Asynchronous Workers:** Celery, Upstash Redis (Task Broker & Result Backend with TLS)
-* **Database:** PostgreSQL (Supabase with PgBouncer transaction pooling)
+* **Asynchronous Workers:** Celery, Redis 7 (On-VM Docker container with AOF persistence)
+* **Database:** PostgreSQL 17 (Self-hosted on-VM Docker container with daily 30-day automated retention)
 * **NLP & Information Extraction:** spaCy (`en_core_web_sm`), Hugging Face Transformers, custom heuristic & scikit-learn classifiers
 * **Time-Series & Prediction:** Amazon Chronos-Forecasting (T5 time-series foundation model), PyTorch, XGBoost, VolatilityNet
 

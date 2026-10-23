@@ -6,7 +6,15 @@ celery_app = Celery(
     "geoatlas",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["workers.ingestion", "workers.event_pipeline", "workers.review_feedback", "workers.predictions", "workers.alerts", "workers.feature_state"],
+    include=[
+        "workers.ingestion",
+        "workers.event_pipeline",
+        "workers.review_feedback",
+        "workers.predictions",
+        "workers.alerts",
+        "workers.feature_state",
+        "workers.cleanup",
+    ],
 )
 
 import ssl
@@ -162,5 +170,10 @@ celery_app.conf.beat_schedule = {
     "calculate-live-features-every-3-min": {
         "task": "workers.feature_state.calculate_7d_rolling_features",
         "schedule": crontab(minute="*/3"),
+    },
+    "purge-stale-data-daily": {
+        "task": "workers.cleanup.purge_old_data",
+        "args": [30],
+        "schedule": crontab(hour=2, minute=30),
     },
 }

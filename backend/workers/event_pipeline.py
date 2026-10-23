@@ -46,8 +46,18 @@ from workers.nlp_utils import (
     score_article_relevance,
 )
 from workers.alerts import evaluate_event_alerts
+from workers.asset_mapper import ExpectedImpact, map_event_to_expected_assets
+from workers.geo_tagger import extract_countries
 
 logger = logging.getLogger(__name__)
+
+NON_TICKER_CASHTAGS = {
+    "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "INR",
+    "FED", "SEC", "DOJ", "DOD", "NATO", "OPEC", "WAR", "GDP", "CPI", "PCE", "PMI",
+    "IPO", "CEO", "CFO", "CTO", "COO", "EST", "EDT", "PST", "PDT", "GMT", "UTC",
+    "COVID", "AI", "IT", "TECH", "OIL", "GAS", "GOLD", "US", "UK", "EU", "UN",
+    "AKPJS", "APYI", "WALL", "POST", "NEWS", "LIVE",
+}
 
 AUTO_APPROVE_THRESHOLD = 0.60
 HUMAN_REVIEW_THRESHOLD = 0.50
@@ -416,7 +426,10 @@ def _build_similarity_corpus(session: Session) -> list[dict]:
             Event.description,
             Event.confidence_score,
         )
-        .where(Event.status.in_((EventStatus.AUTO_APPROVED, EventStatus.HUMAN_APPROVED)))
+        .where(
+            Event.status.in_((EventStatus.AUTO_APPROVED, EventStatus.HUMAN_APPROVED)),
+            Event.pipeline_version == 2,
+        )
         .order_by(Event.published_at.desc().nullslast(), Event.created_at.desc())
         .limit(settings.NLP_L4_LOOKBACK_EVENTS)
     ).all()
@@ -427,7 +440,11 @@ def _build_similarity_corpus(session: Session) -> list[dict]:
     impact_rows = session.execute(
         select(EventImpact.event_id, Asset.ticker, EventImpact.confidence_score)
         .join(Asset, Asset.id == EventImpact.asset_id)
-        .where(EventImpact.event_id.in_(event_ids))
+        .where(
+            EventImpact.event_id.in_(event_ids),
+            EventImpact.is_superseded.is_(False),
+            EventImpact.pipeline_version == 2,
+        )
     ).all()
     impacts_by_event: dict[str, dict[str, float]] = {}
     for event_id, ticker, confidence_score in impact_rows:
@@ -621,6 +638,42 @@ def _ensure_event_tags(session: Session, event_id, tags: list[str]) -> int:
     return created
 
 
+def _ensure_rule_based_impacts(
+    session: Session,
+    event_id,
+    expected_impacts: list[ExpectedImpact],
+    asset_lookup: dict[str, Asset],
+) -> int:
+    created = 0
+    for imp in expected_impacts:
+        asset = asset_lookup.get(imp.ticker.upper())
+        if not asset:
+            continue
+        existing = session.execute(
+            select(EventImpact).where(
+                EventImpact.event_id == event_id,
+                EventImpact.asset_id == asset.id,
+            )
+        ).scalar_one_or_none()
+        if existing:
+            continue
+        session.add(
+            EventImpact(
+                event_id=event_id,
+                asset_id=asset.id,
+                impact_direction=imp.direction,
+                impact_strength=imp.strength,
+                confidence_score=0.85,
+                magnitude=imp.magnitude,
+                rationale=imp.rationale,
+                pipeline_version=2,
+                is_superseded=False,
+            )
+        )
+        created += 1
+    return created
+
+
 def _ensure_event_impacts(
     session: Session,
     event_id,
@@ -654,6 +707,10 @@ def _ensure_event_impacts(
                 impact_direction=impact_direction,
                 impact_strength=max(0.0, min(1.0, impact_strength)),
                 confidence_score=max(0.0, min(1.0, (confidence + relevance_score) / 2)),
+                magnitude="high",
+                rationale="Direct asset mention in news catalyst",
+                pipeline_version=2,
+                is_superseded=False,
             )
         )
         created += 1
@@ -691,6 +748,10 @@ def _ensure_l2_event_impacts(
                 impact_direction=impact_direction,
                 impact_strength=max(0.0, min(1.0, score)),
                 confidence_score=blended_confidence,
+                magnitude="low",
+                rationale="Knowledge graph relational expansion",
+                pipeline_version=2,
+                is_superseded=False,
             )
         )
         created += 1
@@ -763,7 +824,13 @@ def process_unprocessed_articles(self, batch_size: int = 200):
             # Dynamic News Cashtag Auto-Discovery ($TICKER mentions in news)
             cashtag_candidates = set(re.findall(r"\$([A-Z]{1,5})\b", text))
             for ctag in cashtag_candidates:
-                if ctag in asset_tickers or ctag.lower() in GENERIC_SINGLE_TOKEN_ALIASES:
+                if (
+                    ctag in asset_tickers
+                    or ctag.lower() in GENERIC_SINGLE_TOKEN_ALIASES
+                    or ctag in NON_TICKER_CASHTAGS
+                    or len(ctag) < 2
+                    or len(ctag) > 4
+                ):
                     continue
                 try:
                     discovered = session.execute(
@@ -808,7 +875,11 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                 rejected += 1
                 continue
 
-            country = _extract_country(text)
+            country, secondary_countries = extract_countries(
+                title=article.title or "",
+                body=article.content,
+                source=article.source,
+            )
             relevance_score = max(0.0, min(1.0, (confidence + _market_context_score(text, mentioned_tickers)) / 2))
             polarity, intensity = _impact_signal(text)
             impact_direction = _to_impact_direction_with_signal(event_type, polarity=polarity)
@@ -839,6 +910,16 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                 similarity_corpus=similarity_corpus,
             )
 
+            # Event-specific expected assets
+            expected_impacts = map_event_to_expected_assets(
+                event_type=event_type,
+                title=article.title or "",
+                country=country,
+                polarity=polarity,
+                valid_tickers=asset_tickers,
+            )
+            expected_tickers = [imp.ticker for imp in expected_impacts]
+
             # Dedup by title + type + country + day window. The cleaned title is
             # what gets persisted, so match on it too or every markup-bearing
             # article would re-create its own event.
@@ -848,7 +929,7 @@ def process_unprocessed_articles(self, batch_size: int = 200):
             proposed_tickers = sorted(
                 {
                     ticker.upper()
-                    for ticker in (mentioned_tickers + list(l2_tickers.keys()) + list(l3_tickers.keys()) + list(l4_tickers.keys()))
+                    for ticker in (mentioned_tickers + expected_tickers + list(l2_tickers.keys()) + list(l3_tickers.keys()) + list(l4_tickers.keys()))
                 }
             )
             is_valid, gate_errors = _validate_quality_gates(
@@ -898,6 +979,12 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                     existing.severity = severity
                     existing.status = _to_status(confidence)
                 tags_created += _ensure_event_tags(session, existing.id, entity_tags)
+                impacts_created += _ensure_rule_based_impacts(
+                    session=session,
+                    event_id=existing.id,
+                    expected_impacts=expected_impacts,
+                    asset_lookup=asset_lookup,
+                )
                 impacts_created += _ensure_event_impacts(
                     session=session,
                     event_id=existing.id,
@@ -944,6 +1031,8 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                     description=description[:2000] if description else None,
                     event_type=event_type,
                     country=country,
+                    country_legacy=country,
+                    pipeline_version=2,
                     severity=severity,
                     source=article.source,
                     source_url=article.url,
@@ -961,6 +1050,12 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                     )
                 )
                 tags_created += _ensure_event_tags(session, event.id, entity_tags)
+                impacts_created += _ensure_rule_based_impacts(
+                    session=session,
+                    event_id=event.id,
+                    expected_impacts=expected_impacts,
+                    asset_lookup=asset_lookup,
+                )
                 impacts_created += _ensure_event_impacts(
                     session=session,
                     event_id=event.id,

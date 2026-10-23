@@ -25,6 +25,9 @@ secrets/
 credentials
 credentials.json
 credentials.ini
+backups/
+*.sql
+*.sql.gz
 client_secret*.json
 service_account*.json
 service_account.json
@@ -232,5 +235,6 @@ PRD/
 !requirements.md
 !ops/**/*.md
 
-
 .vercel
+audit_samples/
+backend/scripts/migrate_to_local_postgres.sh

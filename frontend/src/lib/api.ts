@@ -111,6 +111,8 @@ export interface EventListItem {
     impact_direction: string;
     impact_strength?: number;
     confidence_score?: number;
+    rationale?: string;
+    magnitude?: string;
   }[];
 }
 

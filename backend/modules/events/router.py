@@ -537,7 +537,10 @@ async def _snapshot_event_impacts(db: AsyncSession, event_id: uuid.UUID) -> list
     result = await db.execute(
         select(EventImpact, Asset)
         .join(Asset, Asset.id == EventImpact.asset_id)
-        .where(EventImpact.event_id == event_id)
+        .where(
+            EventImpact.event_id == event_id,
+            EventImpact.is_superseded.is_(False),
+        )
         .order_by(EventImpact.confidence_score.desc())
     )
     return [
@@ -547,6 +550,8 @@ async def _snapshot_event_impacts(db: AsyncSession, event_id: uuid.UUID) -> list
             "impact_direction": impact.impact_direction.value,
             "impact_strength": impact.impact_strength,
             "confidence_score": impact.confidence_score,
+            "rationale": impact.rationale,
+            "magnitude": impact.magnitude,
         }
         for impact, asset in result.all()
     ]
@@ -686,14 +691,20 @@ async def list_events(
     out = []
     for e in events:
         impact_result = await db.execute(
-            select(func.count()).where(EventImpact.event_id == e.id)
+            select(func.count()).where(
+                EventImpact.event_id == e.id,
+                EventImpact.is_superseded.is_(False),
+            )
         )
         impact_assets_result = await db.execute(
             select(EventImpact, Asset)
             .join(Asset, Asset.id == EventImpact.asset_id)
-            .where(EventImpact.event_id == e.id)
+            .where(
+                EventImpact.event_id == e.id,
+                EventImpact.is_superseded.is_(False),
+            )
             .order_by(EventImpact.confidence_score.desc())
-            .limit(5)
+            .limit(25)
         )
         affected_assets = [
             AffectedAssetOut(
@@ -702,6 +713,8 @@ async def list_events(
                 impact_direction=impact.impact_direction.value,
                 impact_strength=impact.impact_strength,
                 confidence_score=impact.confidence_score,
+                rationale=impact.rationale,
+                magnitude=impact.magnitude,
             )
             for impact, asset in impact_assets_result.all()
         ]

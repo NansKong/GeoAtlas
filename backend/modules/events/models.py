@@ -68,6 +68,7 @@ class Event(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     event_type: Mapped[EventType] = mapped_column(SAEnum(EventType), nullable=False, index=True)
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    country_legacy: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     region: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     severity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5
     source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -77,6 +78,7 @@ class Event(Base):
     )
     confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    pipeline_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -114,6 +116,10 @@ class EventImpact(Base):
     confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     actual_change_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # filled post-event
     verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    pipeline_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False, server_default="1")
+    is_superseded: Mapped[bool] = mapped_column(default=False, nullable=False, server_default="false")
+    rationale: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    magnitude: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # low, medium, high
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

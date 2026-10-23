@@ -199,7 +199,23 @@ export function GeoHeatmapWidget() {
 
   const top5 = hotspots.slice(0, 5);
   const totalEvents = hotspots.reduce((sum, h) => sum + h.event_count, 0);
-  const totalConflict = hotspots.filter((h) => h.conflict_share > 0.4).length;
+
+  // Top-quartile percentile cut for active conflict surge zones
+  const highConflictCount = useMemo(() => {
+    if (!hotspots.length) return 0;
+    const scores = hotspots
+      .map((h) => (h.event_count || 0) * (h.conflict_share || 0))
+      .filter((s) => s > 0)
+      .sort((a, b) => a - b);
+
+    if (!scores.length) return 0;
+    const p75Index = Math.min(scores.length - 1, Math.floor(scores.length * 0.75));
+    const threshold = Math.max(2.0, scores[p75Index] || 2.0);
+
+    return hotspots.filter(
+      (h) => (h.event_count || 0) * (h.conflict_share || 0) >= threshold && (h.conflict_share || 0) >= 0.4,
+    ).length;
+  }, [hotspots]);
 
   return (
     <section className="mt-6">
@@ -257,11 +273,11 @@ export function GeoHeatmapWidget() {
                 {totalEvents} events tracked
               </p>
             </div>
-            {totalConflict > 0 && (
+            {highConflictCount > 0 && (
               <div className="flex items-center gap-1 rounded-xl bg-rose-900/60 px-3 py-2 backdrop-blur-sm">
                 <AlertTriangle className="h-3.5 w-3.5 text-rose-300" />
                 <span className="text-xs font-bold text-rose-200">
-                  {totalConflict} high-conflict
+                  {highConflictCount} high-conflict
                 </span>
               </div>
             )}

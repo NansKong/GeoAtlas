@@ -420,12 +420,28 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
                 <PriceChart points={orderedPoints} ticker={activeTicker} />
               </div>
               {/* Footer */}
-              <div className="flex items-center justify-between pt-2 text-[10px] text-gray-400 border-t border-gray-100 mt-1">
-                <span>Last 30 trading days + live tick</span>
-                <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
-                  {ohlcvQuery.data.source} · {ohlcvQuery.data.cache_hit ? "cache hit" : "fresh"}
-                </span>
-              </div>
+              {(() => {
+                const firstClose = orderedPoints.length > 0 ? orderedPoints[0]?.close : undefined;
+                const lastClose = orderedPoints.length > 0 ? orderedPoints[orderedPoints.length - 1]?.close : undefined;
+                const trend30dPct = firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : undefined;
+                return (
+                  <div className="flex items-center justify-between pt-2 text-[10px] text-gray-400 border-t border-gray-100 mt-1">
+                    <div className="flex items-center gap-2">
+                      <span>Last 30 trading days + live tick</span>
+                      {trend30dPct !== undefined && (
+                        <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                          trend30dPct >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                        }`}>
+                          30D Trend: {trend30dPct >= 0 ? "+" : ""}{trend30dPct.toFixed(2)}%
+                        </span>
+                      )}
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
+                      {ohlcvQuery.data.source} · {ohlcvQuery.data.cache_hit ? "cache hit" : "fresh"}
+                    </span>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>

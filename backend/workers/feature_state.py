@@ -63,7 +63,7 @@ def calculate_7d_rolling_features(self):
             # 2. Fetch Events (Last 14 days to compute 7d lags and rolling avgs)
             t_back = now - timedelta(days=14)
             events_data = session.execute(
-                select(Event.published_at, EventImpact.impact_strength, Event.metadata_)
+                select(Event.published_at, EventImpact.impact_strength)
                 .join(EventImpact, Event.id == EventImpact.event_id)
                 .where(
                     EventImpact.asset_id == asset.id,
@@ -84,14 +84,14 @@ def calculate_7d_rolling_features(self):
             
             if events_data:
                 rows = []
-                for pub_at, sent, meta in events_data:
-                    g_scale = meta.get("goldstein_scale", 0.0) if meta else 0.0
+                for pub_at, sent in events_data:
+                    g_scale = 0.0
                     rows.append({
                         "date": pub_at.date(),
                         "sentiment": float(sent) if sent else 0.0,
-                        "goldstein": float(g_scale) if g_scale else 0.0,
+                        "goldstein": float(g_scale),
                         "abs_sentiment": abs(float(sent)) if sent else 0.0,
-                        "abs_goldstein": abs(float(g_scale)) if g_scale else 0.0
+                        "abs_goldstein": abs(float(g_scale))
                     })
                 df_events = pd.DataFrame(rows)
                 

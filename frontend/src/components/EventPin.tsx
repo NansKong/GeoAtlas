@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Plus } from "lucide-react";
 import { safeDistanceToNow } from "@/lib/dateUtils";
@@ -9,6 +10,8 @@ interface AffectedAsset {
   impact_direction: string;
   impact_strength?: number;
   confidence_score?: number;
+  rationale?: string;
+  magnitude?: string;
 }
 
 export interface EventPinData {
@@ -43,6 +46,7 @@ interface EventPinProps {
 }
 
 export function EventPin({ event, onSave }: EventPinProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const typeStyle = EVENT_TYPE_COLORS[event.event_type] ?? { bg: "#f3f4f6", text: "#374151" };
   const typeLabel = event.event_type.replace(/_/g, " ");
   const timeAgo = event.published_at
@@ -50,6 +54,7 @@ export function EventPin({ event, onSave }: EventPinProps) {
     : null;
   const affectedAssets = event.affected_assets ?? [];
   const tags = event.tags ?? [];
+  const displayedAssets = isExpanded ? affectedAssets : affectedAssets.slice(0, 5);
 
   return (
     <motion.div
@@ -117,33 +122,58 @@ export function EventPin({ event, onSave }: EventPinProps) {
 
         {affectedAssets.length > 0 && (
           <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-2.5">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-              Affected Assets
-            </p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                Affected Assets ({affectedAssets.length})
+              </p>
+              {affectedAssets.length > 5 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded((prev) => !prev);
+                  }}
+                  className="text-[11px] font-semibold text-geo-600 hover:text-geo-700 transition-colors cursor-pointer"
+                >
+                  {isExpanded ? "Collapse" : `+${affectedAssets.length - 5} more`}
+                </button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-1.5">
-              {affectedAssets.slice(0, 5).map((asset) => {
+              {displayedAssets.map((asset) => {
                 const dir = asset.impact_direction.toLowerCase();
+                const isPos = dir === "positive";
+                const isNeg = dir === "negative";
                 const tone =
-                  dir === "positive"
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    : dir === "negative"
-                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                  isPos
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                    : isNeg
+                    ? "bg-rose-100 text-rose-800 border-rose-300"
                     : "bg-slate-100 text-slate-700 border-slate-200";
+                const arrow = isPos ? "▲" : isNeg ? "▼" : "•";
+                const tooltip = [
+                  asset.name ? `${asset.name} (${asset.ticker})` : asset.ticker,
+                  asset.rationale,
+                ]
+                  .filter(Boolean)
+                  .join("\n");
+
                 return (
                   <span
                     key={`${event.id}-${asset.ticker}`}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${tone}`}
-                    title={asset.name || asset.ticker}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all hover:shadow-xs ${tone}`}
+                    title={tooltip}
                   >
+                    <span className="text-[9px] font-mono">{arrow}</span>
                     <span>{asset.ticker}</span>
+                    {asset.magnitude && (
+                      <span className="text-[9px] uppercase font-mono opacity-65">
+                        {asset.magnitude.slice(0, 1)}
+                      </span>
+                    )}
                   </span>
                 );
               })}
-              {affectedAssets.length > 5 && (
-                <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-500">
-                  +{affectedAssets.length - 5}
-                </span>
-              )}
             </div>
           </div>
         )}

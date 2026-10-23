@@ -48,6 +48,11 @@ def test_index_ticker_is_unchanged():
     assert _yahoo_symbol("SPX", AssetType.INDEX) == "SPX"
 
 
+def test_dxy_maps_to_ice_dollar_index():
+    assert _yahoo_symbol("DXY", AssetType.INDEX) == "DX-Y.NYB"
+    assert _yahoo_symbol("DX-Y.NYB", AssetType.INDEX) == "DX-Y.NYB"
+
+
 # ─── _strip_yahoo_suffix (inverse: a Yahoo search hit -> our internal ticker) ──
 
 
