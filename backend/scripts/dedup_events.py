@@ -7,7 +7,7 @@ the primary event record, and deletes redundant duplicate event rows.
 import asyncio
 from sqlalchemy import select, func, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import async_session_factory
+from core.database import AsyncSessionFactory
 from modules.events.models import (
     Event,
     EventArticle,
@@ -21,7 +21,7 @@ from modules.events.models import (
 
 
 async def dedup_events():
-    async with async_session_factory() as session:
+    async with AsyncSessionFactory() as session:
         # Find duplicate event titles
         dup_titles_res = await session.execute(
             select(func.lower(func.trim(Event.title)), func.count(Event.id))
