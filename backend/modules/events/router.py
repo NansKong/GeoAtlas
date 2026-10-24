@@ -479,6 +479,13 @@ async def _fetch_review_articles(
     ]
 
 
+def _clean_display_ticker(ticker: Optional[str]) -> str:
+    if not ticker:
+        return ""
+    cleaned = ticker.strip().replace("$", "")
+    return "DXY" if cleaned in ("DX-Y.NYB", "DX-Y") else cleaned
+
+
 async def _to_review_out(db: AsyncSession, event: Event) -> EventReviewOut:
     tags_result = await db.execute(select(EventTag.tag).where(EventTag.event_id == event.id).order_by(EventTag.tag.asc()))
     impact_assets_result = await db.execute(
@@ -504,7 +511,7 @@ async def _to_review_out(db: AsyncSession, event: Event) -> EventReviewOut:
         tags=list(tags_result.scalars().all()),
         affected_assets=[
             AffectedAssetOut(
-                ticker=asset.ticker,
+                ticker=_clean_display_ticker(asset.ticker),
                 name=asset.name,
                 impact_direction=impact.impact_direction.value,
                 impact_strength=impact.impact_strength,
@@ -728,7 +735,7 @@ async def list_events(
         )
         affected_assets = [
             AffectedAssetOut(
-                ticker=asset.ticker,
+                ticker=_clean_display_ticker(asset.ticker),
                 name=asset.name,
                 impact_direction=impact.impact_direction.value,
                 impact_strength=impact.impact_strength,
@@ -1109,7 +1116,7 @@ async def get_unlocated_events(
         )
         affected_assets = [
             AffectedAssetOut(
-                ticker=asset.ticker,
+                ticker=_clean_display_ticker(asset.ticker),
                 name=asset.name,
                 impact_direction=impact.impact_direction.value,
                 impact_strength=impact.impact_strength,

@@ -74,7 +74,6 @@ const MAP_LAYERS: LayerOption[] = [
     label: "Conflict Intensity",
     unit: "% Conflict & Kinetic Share",
     description: "War, missile strikes, territorial disputes, and kinetic confrontations.",
-    event_type: "conflict",
   },
   {
     id: "energy",
@@ -286,10 +285,13 @@ function CountryChoroplethLayer({
               "rgba(71, 85, 105, 0.5)",
             ],
             "line-width": [
-              "case",
-              ["==", ["get", "is_selected"], 1],
-              2.2,
-              ["interpolate", ["linear"], ["zoom"], 0, 0.5, 4, 1.2],
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              ["case", ["==", ["get", "is_selected"], 1], 2.2, 0.5],
+              4,
+              ["case", ["==", ["get", "is_selected"], 1], 3.0, 1.0],
             ],
           },
         });
@@ -1567,9 +1569,9 @@ export default function MacroMapPage() {
         </div>
 
         {/* Main Grid: Globe on Left, Tactical Intelligence Panels on Right */}
-        <div className="grid gap-6 2xl:grid-cols-[1.7fr_0.95fr]">
-          {/* Globe Viewport Box */}
-          <div className="relative overflow-hidden rounded-[30px] border border-slate-800 bg-slate-950 shadow-2xl flex flex-col">
+        <div className="grid gap-6 lg:grid-cols-[1.65fr_1fr] items-start">
+          {/* Globe Viewport Box: Sticky on desktop so it never disappears while browsing panels */}
+          <div className="lg:sticky lg:top-20 relative overflow-hidden rounded-[30px] border border-slate-800 bg-slate-950 shadow-2xl flex flex-col">
             {/* Viewport Top Bar */}
             <div className="relative z-20 flex items-center justify-between border-b border-slate-800 bg-slate-950/90 backdrop-blur-md px-5 py-3">
               <div className="flex items-center gap-2">
@@ -1603,7 +1605,7 @@ export default function MacroMapPage() {
                 }}
               />
             ) : (
-              <div className="relative h-[680px] w-full">
+              <div className="relative h-[660px] lg:h-[calc(100vh-220px)] min-h-[580px] max-h-[840px] w-full">
                 {isHeatmapError ? (
                   <MapFailureState onRetry={() => refetchHeatmap()} />
                 ) : isHeatmapLoading && !mapInstance ? (
@@ -1694,8 +1696,8 @@ export default function MacroMapPage() {
             </div>
           </div>
 
-          {/* Tactical Intelligence Sidebar */}
-          <div className="space-y-4">
+          {/* Tactical Intelligence Sidebar: Scrollable on desktop */}
+          <div className="space-y-4 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pr-1.5 pb-8">
             {/* Maritime Chokepoints Live Status Watch */}
             <div className="rounded-[28px] border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3.5 border-b border-slate-800 pb-2.5">
@@ -1706,7 +1708,7 @@ export default function MacroMapPage() {
                   </h2>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  Anchored Waterway Terms
+                  Strategic Straits
                 </span>
               </div>
 
@@ -1736,7 +1738,7 @@ export default function MacroMapPage() {
                           <button
                             type="button"
                             onClick={() => flyTo(cp.coordinates, 4.8)}
-                            className="font-bold text-xs text-white hover:text-cyan-400 underline decoration-dotted text-left cursor-pointer"
+                            className="font-bold text-xs text-white hover:text-cyan-400 transition-colors text-left cursor-pointer"
                           >
                             {cp.name}
                           </button>
