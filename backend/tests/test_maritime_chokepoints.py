@@ -161,6 +161,52 @@ def test_distinct_stories_separation():
     assert len(clusters) == 3
 
 
+def test_hormuz_four_headlines_cluster_as_single_story():
+    """Verify the four real Hormuz headlines cluster into 1 story and evaluate to 'elevated', not 'disrupted'."""
+    hormuz_events = [
+        {"id": "1", "title": "Iran says seven ships hit in Persian Gulf - CBS News"},
+        {"id": "2", "title": "7 tankers were damaged in Hormuz - Bloomberg"},
+        {"id": "3", "title": "7 ships hit near Strait of Hormuz - Reuters"},
+        {"id": "4", "title": "7 oil tankers are on fire in Persian Gulf - AP"},
+    ]
+    clusters = deduplicate_headlines(hormuz_events)
+    assert len(clusters) == 1, f"Expected all 4 headlines to cluster into 1 story, got {len(clusters)}"
+    assert len(clusters[0]) == 4
+
+    # Rule guardrail: One story must NEVER reach 'disrupted', even with severe kinetic impact!
+    status = evaluate_chokepoint_status(distinct_story_count=len(clusters), has_severe_kinetic=True)
+    assert status == "elevated", f"Expected 'elevated' for single incident cluster, got '{status}'"
+
+
+def test_oil_price_commentary_rejected_for_bab_el_mandeb(chokepoint_regex_map):
+    """Verify market commentary and price reports do NOT trigger maritime chokepoint matches."""
+    regexes = chokepoint_regex_map["bab-el-mandeb"]
+
+    # Market commentary articles mentioning Red Sea or Houthis in body only
+    assert not matches_chokepoint(
+        title="$120 Oil Is Almost Here As Middle East Conflict Intensifies",
+        text="Analysts warn Brent crude could reach $120 a barrel if disruptions spread across the Middle East. Some ships in the Red Sea have rerouted.",
+        location_regexes=regexes,
+    )
+    assert not matches_chokepoint(
+        title="Oil price rises above $115 amid broader Middle East tensions - Reuters",
+        text="Crude oil futures rallied strongly today as traders weighed Middle East escalation.",
+        location_regexes=regexes,
+    )
+    assert not matches_chokepoint(
+        title="Global oil prices hit highest level in 5 months amid attacks on ships, facilities - ABC News",
+        text="Global oil benchmark rose 3% following general regional unrest. Maritime transit in the Red Sea has seen lower volumes.",
+        location_regexes=regexes,
+    )
+
+    # BUT genuine incident with incident verb and same-sentence co-occurrence MUST match:
+    assert matches_chokepoint(
+        title="Oil jumps 4% after tanker struck by missile in Red Sea",
+        text="A commercial oil tanker was struck by an anti-ship missile in the southern Red Sea today.",
+        location_regexes=regexes,
+    )
+
+
 # ─── STATUS THRESHOLD GUARDRAILS (NO SINGLE EVENT 'DISRUPTED') ─────────────────
 def test_single_event_cannot_trigger_disrupted():
     """A single severe kinetic event (severity >= 4) must ONLY trigger 'elevated', NEVER 'disrupted'."""
@@ -188,3 +234,4 @@ def test_four_distinct_stories_triggers_disrupted():
 def test_two_distinct_stories_without_severe_is_elevated():
     status = evaluate_chokepoint_status(distinct_story_count=2, has_severe_kinetic=False)
     assert status == "elevated"
+

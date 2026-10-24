@@ -950,14 +950,12 @@ def process_unprocessed_articles(self, batch_size: int = 200):
                     quality_failures[code] = quality_failures.get(code, 0) + 1
                 continue
 
+            # Deduplicate by title to prevent duplicate event creation across syndicated feeds
             existing = session.execute(
                 select(Event).where(
-                    Event.title == event_title,
-                    Event.event_type == event_type,
-                    Event.country == country,
-                    func.date(Event.published_at) == published_date,
+                    func.lower(func.trim(Event.title)) == func.lower(event_title.strip())
                 )
-            ).scalar_one_or_none()
+            ).scalars().first()
 
             if existing:
                 already_linked = session.execute(

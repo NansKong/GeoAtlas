@@ -115,11 +115,17 @@ def map_event_to_expected_assets(
     elif any(w in text_l for w in ("barclays", "french bond", "french yields", "bundesbank", "cac 40", "sovereign yield", "eurozone banks")):
         results.extend(EUROPEAN_FINANCIAL_IMPACTS)
 
-    # 3. Conflict / War catalyst
+    # 3. Oil Tanker / Maritime Energy Corridor / Refinery Attack catalyst (Oil instruments first!)
+    elif any(w in text_l for w in ("tanker", "tankers", "crude", "oil tanker", "petroleum", "pipeline", "refinery", "lng", "fuel depot")) or (
+        any(w in text_l for w in ("hormuz", "persian gulf", "red sea", "bab el-mandeb", "aramco")) and any(w in text_l for w in ("strike", "attack", "hit", "fire", "drone", "missile", "seiz", "damage"))
+    ):
+        results.extend(ENERGY_DISRUPTION_IMPACTS)
+
+    # 4. Conflict / War catalyst
     elif event_type == EventType.CONFLICT:
         results.extend(CONFLICT_CORE_IMPACTS)
 
-    # 4. Energy Disruption catalyst
+    # 5. Energy Disruption catalyst
     elif event_type == EventType.ENERGY_DISRUPTION:
         results.extend(ENERGY_DISRUPTION_IMPACTS)
 

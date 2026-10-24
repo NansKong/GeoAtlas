@@ -4,9 +4,20 @@ import { Search, Globe, LayoutGrid, Bell, User } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useQuery } from "@tanstack/react-query";
+import { fetchMe } from "@/lib/api";
+
 export function Navbar() {
   const [query, setQuery] = useState("");
   const router = useRouter();
+
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: fetchMe,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  const isOperator = me?.role === "admin" || me?.role === "reviewer";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,12 +61,14 @@ export function Navbar() {
           >
             News
           </Link>
-          <Link
-            href="/review"
-            className="px-3 py-1.5 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            Review
-          </Link>
+          {isOperator && (
+            <Link
+              href="/review"
+              className="px-3 py-1.5 rounded-full text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors"
+            >
+              Review
+            </Link>
+          )}
           <Link
             href="/map"
             className="px-3 py-1.5 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"

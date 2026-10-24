@@ -975,11 +975,11 @@ async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
 
         matched_events: list[Event] = []
         for e in events:
-            text = f"{e.title or ''} {e.description or ''}"
-            if matches_chokepoint(text, location_regexes):
+            text = e.description or ""
+            if matches_chokepoint(text=text, location_regexes=location_regexes, title=e.title):
                 matched_events.append(e)
 
-        # Deduplicate syndicated wire stories
+        # Deduplicate syndicated wire stories into distinct clusters
         event_dicts = [{"id": str(e.id), "title": e.title or ""} for e in matched_events]
         clusters = deduplicate_headlines(event_dicts)
         distinct_story_count = len(clusters)
@@ -993,12 +993,18 @@ async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
 
         latest_headline = matched_events[0].title if matched_events else None
         latest_event_id = matched_events[0].id if matched_events else None
-        trigger_headlines = [e.title for e in matched_events[:4] if e.title]
+
+        # Format trigger headlines as one line per distinct story with outlet count
+        trigger_headlines = [
+            f"{c[0]['title']} ({len(c)} outlets)" if len(c) > 1 else c[0]["title"]
+            for c in clusters[:4]
+            if c and c[0].get("title")
+        ]
 
         # Fetch top affected asset tickers for matched events
         top_assets: list[str] = []
         if matched_events:
-            event_ids = [e.id for e in matched_events[:6]]
+            event_ids = [e.id for e in matched_events[:8]]
             assets_res = await db.execute(
                 select(Asset.ticker)
                 .join(EventImpact, EventImpact.asset_id == Asset.id)
@@ -1008,9 +1014,25 @@ async def get_maritime_chokepoints(db: AsyncSession = Depends(get_db)):
                 )
                 .group_by(Asset.ticker)
                 .order_by(func.count(EventImpact.id).desc())
-                .limit(4)
+                .limit(8)
             )
-            top_assets = [t for t in assets_res.scalars().all() if t]
+            raw_tickers = [t for t in assets_res.scalars().all() if t]
+            clean_tickers = ["DXY" if t == "DX-Y.NYB" else t for t in raw_tickers]
+
+            # Content-conditional prioritization: oil/tanker stories must surface oil instruments first
+            is_oil_story = any(
+                re.search(r"\b(oil|tanker|tankers|crude|petroleum|fuel)\b", (e.title or "") + " " + (e.description or ""), re.IGNORECASE)
+                for e in matched_events
+            ) or cp["id"] in ("hormuz", "bab-el-mandeb")
+
+            if is_oil_story:
+                oil_pref = {"USO": 1, "XOM": 2, "CVX": 3, "BNO": 4, "UNG": 5, "XLE": 6}
+                # Ensure core oil instruments appear if energy disruption occurs
+                merged_set = list(dict.fromkeys(clean_tickers + ["USO", "XOM", "CVX"]))
+                merged_set.sort(key=lambda t: oil_pref.get(t, 50))
+                top_assets = merged_set[:4]
+            else:
+                top_assets = clean_tickers[:4]
 
         out.append(
             MaritimeChokepointOut(

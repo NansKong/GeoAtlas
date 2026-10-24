@@ -1133,8 +1133,8 @@ function AccessibleListView({
 
 /* ─── Main Macro Map Page ─────────────────────────────────────────────────── */
 export default function MacroMapPage() {
-  const [days, setDays] = useState(14);
-  const [activeLayerId, setActiveLayerId] = useState<MapLayerId>("baseline_surge");
+  const [days, setDays] = useState(7);
+  const [activeLayerId, setActiveLayerId] = useState<MapLayerId>("conflict");
   const [assetLens, setAssetLens] = useState("");
   const [projectionMode, setProjectionMode] = useState<"globe" | "mercator">("globe");
   const [colorblindMode, setColorblindMode] = useState(false);
@@ -1146,7 +1146,7 @@ export default function MacroMapPage() {
   const [mapInstance, setMapInstance] = useState<MapRef | null>(null);
 
   // Time slider replay states
-  const [dayOffset, setDayOffset] = useState(14);
+  const [dayOffset, setDayOffset] = useState(7);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Operator Auth status check
@@ -1358,7 +1358,7 @@ export default function MacroMapPage() {
               <Search className="absolute left-3.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search country, waterway (e.g. Hormuz, Red Sea), or ticker..."
+                placeholder="Search country, waterway, or ticker..."
                 value={searchQuery}
                 onFocus={() => setIsSearchOpen(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1429,6 +1429,7 @@ export default function MacroMapPage() {
               type="button"
               onClick={() => setIsUnlocatedOpen(true)}
               className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-950/30 hover:bg-cyan-900/40 px-3.5 py-1.5 text-xs font-bold text-cyan-300 transition-all shadow-sm cursor-pointer"
+              title="Articles that lack a specific sovereign territory tag or discuss broad multi-country macro themes (e.g. global commodities, international summits, multilateral agreements)."
             >
               <Compass className="h-3.5 w-3.5 text-cyan-400" />
               <span>Unlocated &amp; Global ({unlocatedSummary?.total_unlocated ?? 135})</span>
@@ -1515,7 +1516,7 @@ export default function MacroMapPage() {
 
           {/* Layer Selector */}
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Telemetry Layer:</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Map Layer:</span>
             {MAP_LAYERS.map((layer) => (
               <button
                 key={layer.id}
@@ -1571,7 +1572,7 @@ export default function MacroMapPage() {
                 </span>
                 <span className="text-slate-600">/</span>
                 <span className="text-xs font-bold text-slate-300">
-                  {filteredPlotted.length} Sovereign Epicenters
+                  {filteredPlotted.length} countries with activity
                 </span>
                 {assetLens && (
                   <span className="rounded bg-amber-400/20 border border-amber-400/40 px-2 py-0.5 text-[10px] font-black text-amber-300">
@@ -1581,7 +1582,7 @@ export default function MacroMapPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] uppercase font-bold text-slate-400">
-                  {maritimeChokepoints.length} Anchored Maritime Corridors
+                  {maritimeChokepoints.length} maritime corridors
                 </span>
               </div>
             </div>
@@ -1606,8 +1607,8 @@ export default function MacroMapPage() {
                     <MapComponent
                       ref={(ref) => setMapInstance(ref)}
                       theme="dark"
-                      center={[20, 24]}
-                      zoom={1.5}
+                      center={[15, 20]}
+                      zoom={1.05}
                       minZoom={0.8}
                       maxZoom={6.5}
                       renderWorldCopies={false}
@@ -1742,28 +1743,33 @@ export default function MacroMapPage() {
                         </span>
                       </div>
 
-                      {/* Source Citation */}
-                      <div className="mt-1 text-[10px] text-slate-400 flex items-center justify-between">
-                        <span>{cp.traffic_estimate}</span>
-                        <a
-                          href={cp.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-cyan-400 hover:underline flex items-center gap-0.5 font-semibold"
-                        >
-                          <span>{cp.source_citation.split("/")[0].trim()}</span>
-                          <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
+                      {/* Traffic Metric & Source Citation */}
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[11px] text-slate-300 font-medium leading-relaxed">
+                          {cp.traffic_estimate}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 pt-0.5">
+                          <span>Source:</span>
+                          <a
+                            href={cp.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-400 hover:text-cyan-400 hover:underline inline-flex items-center gap-0.5 transition-colors font-medium"
+                          >
+                            <span>{cp.source_citation}</span>
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        </div>
                       </div>
 
                       {/* Trigger headlines or latest news */}
                       <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1">
                         <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">
-                          {cp.trigger_headlines.length > 0 ? "Triggering Headlines (Rule-Based):" : "Latest Headline:"}
+                          {cp.trigger_headlines.length > 0 ? "Triggering Incidents:" : "Latest Headline:"}
                         </p>
                         {cp.trigger_headlines.length > 0 ? (
                           cp.trigger_headlines.map((hl, i) => (
-                            <p key={i} className="text-[11px] text-slate-200 line-clamp-1 leading-snug">
+                            <p key={i} className="text-[11px] text-slate-200 line-clamp-2 leading-snug">
                               • {hl}
                             </p>
                           ))
@@ -1776,11 +1782,14 @@ export default function MacroMapPage() {
 
                       {cp.top_assets.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {cp.top_assets.map((ticker) => (
-                            <span key={ticker} className="rounded bg-slate-800 px-1.5 py-0.2 text-[9px] font-bold text-amber-300 font-mono">
-                              ${ticker}
-                            </span>
-                          ))}
+                          {cp.top_assets.map((ticker) => {
+                            const cleanTicker = ticker === "DX-Y.NYB" ? "DXY" : ticker.replace(/^\$/, "");
+                            return (
+                              <span key={ticker} className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono">
+                                ${cleanTicker}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1794,8 +1803,11 @@ export default function MacroMapPage() {
               <div className="flex items-center justify-between mb-3.5 border-b border-slate-800 pb-2.5">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-rose-500" />
-                  <h2 className="text-xs font-black uppercase tracking-wider text-white">
-                    Velocity Surges vs Baseline
+                  <h2
+                    className="text-xs font-black uppercase tracking-wider text-white"
+                    title="Non-overlapping baseline surge velocity: compares current event rate against prior 30-day baseline (smoothed, n ≥ 3)"
+                  >
+                    Where activity is rising
                   </h2>
                 </div>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">

@@ -61,11 +61,18 @@ def _store_articles(articles: list[dict]) -> int:
             existing = session.execute(
                 select(NewsArticle).where(NewsArticle.content_hash == content_hash)
             ).scalar_one_or_none()
-            if existing:
-                continue
             # Fall back to the raw title if the entry was nothing but markup.
             # Truncate after stripping so a cut never lands mid-tag.
             title = (clean_feed_text(article["title"]) or article["title"])[:500]
+            if not title:
+                continue
+            existing_title = session.execute(
+                select(NewsArticle.id).where(
+                    func.lower(func.trim(NewsArticle.title)) == func.lower(title.strip())
+                )
+            ).scalars().first()
+            if existing_title:
+                continue
             content = clean_feed_text(article.get("content"))
             news = NewsArticle(
                 title=title,
