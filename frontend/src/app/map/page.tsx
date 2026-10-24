@@ -140,6 +140,12 @@ function formatPct(v?: number | null) {
   return v == null ? "-" : `${(v * 100).toFixed(1)}%`;
 }
 
+function formatDisplayTicker(ticker?: string): string {
+  if (!ticker) return "";
+  const cleaned = ticker.replace(/^\$/, "");
+  return cleaned === "DX-Y.NYB" || cleaned.includes("DX-Y") ? "DXY" : cleaned;
+}
+
 function formatMultiple(ratio?: number | null, status?: string) {
   if (status === "building_baseline" || ratio == null) {
     return "Building baseline";
@@ -908,7 +914,7 @@ function CountryIntelligenceDrawer({
                               title={asset.rationale ?? undefined}
                             >
                               <span>{isUp ? "▲" : "▼"}</span>
-                              <span>${asset.ticker}</span>
+                              <span>${formatDisplayTicker(asset.ticker)}</span>
                               {asset.magnitude && (
                                 <span className="opacity-70 text-[8px] uppercase">({asset.magnitude})</span>
                               )}
@@ -1782,14 +1788,11 @@ export default function MacroMapPage() {
 
                       {cp.top_assets.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {cp.top_assets.map((ticker) => {
-                            const cleanTicker = ticker === "DX-Y.NYB" ? "DXY" : ticker.replace(/^\$/, "");
-                            return (
-                              <span key={ticker} className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono">
-                                ${cleanTicker}
-                              </span>
-                            );
-                          })}
+                          {cp.top_assets.map((ticker) => (
+                            <span key={ticker} className="rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono">
+                              ${formatDisplayTicker(ticker)}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
