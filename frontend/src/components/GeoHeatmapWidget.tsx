@@ -111,7 +111,8 @@ function HeatmapLayer({ hotspots }: { hotspots: HotspotPoint[] }) {
         if (map.getSource(sourceId)) map.removeSource(sourceId);
       } catch { /* ignore */ }
     };
-  }, [map, isLoaded, sourceId, heatLayerId, geoJson]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, isLoaded, sourceId, heatLayerId]);
 
   // Update data when hotspots change
   useEffect(() => {

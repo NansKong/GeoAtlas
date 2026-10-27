@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { Globe, Newspaper, Search, Sparkles, Zap } from "lucide-react";
+import { AlertCircle, Globe, Newspaper, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
 
 import { CrossAssetCorrelation } from "@/components/CrossAssetCorrelation";
 import { EventPin, type EventPinData } from "@/components/EventPin";
@@ -46,7 +46,13 @@ export default function HomePage() {
   const [appliedTopicQuery, setAppliedTopicQuery] = useState("");
   const [saveTarget, setSaveTarget] = useState<EventPinData | null>(null);
 
-  const { data: events, isLoading: isEventsLoading } = useQuery({
+  const {
+    data: events,
+    isLoading: isEventsLoading,
+    isError: isEventsError,
+    error: eventsError,
+    refetch: refetchEvents,
+  } = useQuery({
     queryKey: ["events", activeType, appliedTopicQuery],
     queryFn: () =>
       fetchEvents({
@@ -57,7 +63,13 @@ export default function HomePage() {
       }),
   });
 
-  const { data: articles, isLoading: isNewsLoading } = useQuery({
+  const {
+    data: articles,
+    isLoading: isNewsLoading,
+    isError: isNewsError,
+    error: newsError,
+    refetch: refetchNews,
+  } = useQuery({
     queryKey: ["news-feed", activeNewsCategory, appliedTopicQuery],
     queryFn: () =>
       fetchNews({
@@ -67,7 +79,14 @@ export default function HomePage() {
       }),
     staleTime: 60_000,
   });
-  const { data: predictions, isLoading: isPredictionsLoading } = useQuery({
+
+  const {
+    data: predictions,
+    isLoading: isPredictionsLoading,
+    isError: isPredictionsError,
+    error: predictionsError,
+    refetch: refetchPredictions,
+  } = useQuery({
     queryKey: ["prediction-feed-preview"],
     queryFn: () => fetchPredictions({ published_only: true, limit: 4 }),
     staleTime: 30_000,
@@ -183,6 +202,25 @@ export default function HomePage() {
               <div key={i} className="h-72 animate-pulse rounded-[26px] border border-gray-200 bg-gray-100" />
             ))}
           </div>
+        ) : isPredictionsError ? (
+          <div className="rounded-[24px] border border-amber-200 bg-amber-50/70 p-6 text-center">
+            <ShieldAlert className="mx-auto mb-2 h-8 w-8 text-amber-600" />
+            <h3 className="text-sm font-bold text-gray-900">
+              {(predictionsError as any)?.response?.status === 403
+                ? "Daily Free Prediction Limit Reached"
+                : "Unable to Load Prediction Surface"}
+            </h3>
+            <p className="mt-1 text-xs text-gray-600">
+              {(predictionsError as any)?.response?.data?.detail ??
+                "Encountered an issue loading live predictions. Check back shortly or retry."}
+            </p>
+            <button
+              onClick={() => refetchPredictions()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" /> Retry
+            </button>
+          </div>
         ) : Array.isArray(predictions) && predictions.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {predictions.map((prediction) => (
@@ -229,6 +267,20 @@ export default function HomePage() {
 
         {isNewsLoading ? (
           <ArticleSkeletonGrid />
+        ) : isNewsError ? (
+          <div className="rounded-[24px] border border-red-200 bg-red-50/70 p-6 text-center">
+            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
+            <h3 className="text-sm font-bold text-gray-900">Unable to Load News Stream</h3>
+            <p className="mt-1 text-xs text-gray-600">
+              {(newsError as any)?.response?.data?.detail ?? "Check your network connection or try refreshing."}
+            </p>
+            <button
+              onClick={() => refetchNews()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" /> Retry
+            </button>
+          </div>
         ) : Array.isArray(articles) && articles.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {articles.map((article) => (
@@ -271,6 +323,20 @@ export default function HomePage() {
 
         {isEventsLoading ? (
           <EventSkeletonGrid />
+        ) : isEventsError ? (
+          <div className="rounded-[24px] border border-red-200 bg-red-50/70 p-6 text-center">
+            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
+            <h3 className="text-sm font-bold text-gray-900">Unable to Load Event Intelligence</h3>
+            <p className="mt-1 text-xs text-gray-600">
+              {(eventsError as any)?.response?.data?.detail ?? "Check your network connection or try refreshing."}
+            </p>
+            <button
+              onClick={() => refetchEvents()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" /> Retry
+            </button>
+          </div>
         ) : Array.isArray(events) && events.length > 0 ? (
           <MasonryGrid>
             {events.map((event) => (

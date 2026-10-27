@@ -72,7 +72,7 @@ export default function ReviewQueuePage() {
     staleTime: 60_000,
   });
 
-  const queue = queueQuery.data ?? [];
+  const queue = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
   const selected = useMemo(
     () => queue.find((item) => item.id === selectedId) ?? queue[0] ?? null,
     [queue, selectedId]
@@ -85,6 +85,7 @@ export default function ReviewQueuePage() {
     }
     setSelectedId(selected.id);
     setForm(toFormState(selected));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   const refreshQueue = async () => {

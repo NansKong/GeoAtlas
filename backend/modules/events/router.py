@@ -1,4 +1,5 @@
 from typing import List, Optional
+from collections import defaultdict
 import uuid
 from datetime import datetime, timedelta, timezone
 import re
@@ -714,58 +715,73 @@ async def list_events(
 
     result = await db.execute(query)
     events = result.scalars().all()
+    if not events:
+        return []
 
-    out = []
-    for e in events:
-        impact_result = await db.execute(
-            select(func.count()).where(
-                EventImpact.event_id == e.id,
-                EventImpact.is_superseded.is_(False),
-            )
+    event_ids = [e.id for e in events]
+
+    # 1. Batch impact counts
+    impact_counts_res = await db.execute(
+        select(EventImpact.event_id, func.count())
+        .where(
+            EventImpact.event_id.in_(event_ids),
+            EventImpact.is_superseded.is_(False),
         )
-        impact_assets_result = await db.execute(
-            select(EventImpact, Asset)
-            .join(Asset, Asset.id == EventImpact.asset_id)
-            .where(
-                EventImpact.event_id == e.id,
-                EventImpact.is_superseded.is_(False),
-            )
-            .order_by(EventImpact.confidence_score.desc())
-            .limit(25)
+        .group_by(EventImpact.event_id)
+    )
+    impact_counts = dict(impact_counts_res.all())
+
+    # 2. Batch affected assets
+    impact_assets_res = await db.execute(
+        select(EventImpact, Asset)
+        .join(Asset, Asset.id == EventImpact.asset_id)
+        .where(
+            EventImpact.event_id.in_(event_ids),
+            EventImpact.is_superseded.is_(False),
         )
-        affected_assets = [
-            AffectedAssetOut(
-                ticker=_clean_display_ticker(asset.ticker),
-                name=asset.name,
-                impact_direction=impact.impact_direction.value,
-                impact_strength=impact.impact_strength,
-                confidence_score=impact.confidence_score,
-                rationale=impact.rationale,
-                magnitude=impact.magnitude,
+        .order_by(EventImpact.confidence_score.desc())
+    )
+    impacts_by_event: dict[uuid.UUID, list[AffectedAssetOut]] = defaultdict(list)
+    for impact, asset in impact_assets_res.all():
+        if len(impacts_by_event[impact.event_id]) < 25:
+            impacts_by_event[impact.event_id].append(
+                AffectedAssetOut(
+                    ticker=_clean_display_ticker(asset.ticker),
+                    name=asset.name,
+                    impact_direction=impact.impact_direction.value,
+                    impact_strength=impact.impact_strength,
+                    confidence_score=impact.confidence_score,
+                    rationale=impact.rationale,
+                    magnitude=impact.magnitude,
+                )
             )
-            for impact, asset in impact_assets_result.all()
-        ]
-        tags_result = await db.execute(
-            select(EventTag.tag)
-            .where(EventTag.event_id == e.id)
-            .order_by(EventTag.tag.asc())
-            .limit(8)
+
+    # 3. Batch tags
+    tags_res = await db.execute(
+        select(EventTag.event_id, EventTag.tag)
+        .where(EventTag.event_id.in_(event_ids))
+        .order_by(EventTag.tag.asc())
+    )
+    tags_by_event: dict[uuid.UUID, list[str]] = defaultdict(list)
+    for eid, tag in tags_res.all():
+        if len(tags_by_event[eid]) < 8:
+            tags_by_event[eid].append(tag)
+
+    return [
+        EventListOut(
+            id=e.id,
+            title=e.title,
+            event_type=e.event_type.value,
+            country=e.country,
+            severity=e.severity,
+            confidence_score=e.confidence_score,
+            published_at=e.published_at,
+            impact_count=impact_counts.get(e.id, 0),
+            affected_assets=impacts_by_event.get(e.id, []),
+            tags=tags_by_event.get(e.id, []),
         )
-        out.append(
-            EventListOut(
-                id=e.id,
-                title=e.title,
-                event_type=e.event_type.value,
-                country=e.country,
-                severity=e.severity,
-                confidence_score=e.confidence_score,
-                published_at=e.published_at,
-                impact_count=impact_result.scalar() or 0,
-                affected_assets=affected_assets,
-                tags=list(tags_result.scalars().all()),
-            )
-        )
-    return out
+        for e in events
+    ]
 
 
 def _surge_ratio(

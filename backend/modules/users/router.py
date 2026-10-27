@@ -19,6 +19,7 @@ from fastapi import (
 )
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -312,9 +313,16 @@ async def firebase_login(payload: FirebaseLoginRequest, db: AsyncSession = Depen
             subscription_plan="free",
             alert_preferences={},
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        try:
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        except IntegrityError:
+            await db.rollback()
+            user_res = await db.execute(select(User).where(User.email == email))
+            user = user_res.scalar_one_or_none()
+            if not user:
+                raise HTTPException(status_code=500, detail="Failed to provision user")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is inactive")
@@ -445,9 +453,23 @@ async def billing_limits(
     )
 
 
+def _resolve_billing_url(request: Request, configured_url: str, default_path: str) -> str:
+    origin = request.headers.get("origin")
+    if not origin:
+        referer = request.headers.get("referer")
+        if referer:
+            from urllib.parse import urlparse
+            parsed = urlparse(referer)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+    if origin and ("vercel.app" in origin or "localhost" in origin or "127.0.0.1" in origin):
+        return f"{origin.rstrip('/')}{default_path}"
+    return configured_url
+
+
 @billing_router.post("/checkout-session", response_model=BillingSessionOut)
 async def create_checkout_session(
     payload: BillingCheckoutRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -460,14 +482,17 @@ async def create_checkout_session(
     if not price_id:
         raise HTTPException(status_code=503, detail=f"Stripe price for {payload.plan} is not configured")
 
+    success_url = _resolve_billing_url(request, settings.STRIPE_SUCCESS_URL, "/pricing?status=success")
+    cancel_url = _resolve_billing_url(request, settings.STRIPE_CANCEL_URL, "/pricing?status=cancelled")
+
     session = await _stripe_request(
         "POST",
         "/checkout/sessions",
         data={
             "mode": "subscription",
             "customer": customer_id,
-            "success_url": settings.STRIPE_SUCCESS_URL,
-            "cancel_url": settings.STRIPE_CANCEL_URL,
+            "success_url": success_url,
+            "cancel_url": cancel_url,
             "line_items[0][price]": price_id,
             "line_items[0][quantity]": "1",
             "metadata[user_id]": str(current_user.id),
@@ -482,16 +507,18 @@ async def create_checkout_session(
 
 @billing_router.post("/portal-session", response_model=BillingSessionOut)
 async def create_portal_session(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     customer_id = await _ensure_stripe_customer(db, current_user)
+    return_url = _resolve_billing_url(request, settings.STRIPE_PORTAL_RETURN_URL, "/pricing")
     session = await _stripe_request(
         "POST",
         "/billing_portal/sessions",
         data={
             "customer": customer_id,
-            "return_url": settings.STRIPE_PORTAL_RETURN_URL,
+            "return_url": return_url,
         },
     )
     return BillingSessionOut(url=session["url"])

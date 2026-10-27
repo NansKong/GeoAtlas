@@ -128,6 +128,22 @@ async def _board_out(db: AsyncSession, board: Board) -> BoardOut:
     return BoardOut(**board.__dict__, pin_count=await _pin_count(db, board.id))
 
 
+async def _batch_board_out(db: AsyncSession, boards: list[Board]) -> list[BoardOut]:
+    if not boards:
+        return []
+    board_ids = [b.id for b in boards]
+    counts_res = await db.execute(
+        select(Pin.board_id, func.count())
+        .where(Pin.board_id.in_(board_ids))
+        .group_by(Pin.board_id)
+    )
+    counts = dict(counts_res.all())
+    return [
+        BoardOut(**b.__dict__, pin_count=counts.get(b.id, 0))
+        for b in boards
+    ]
+
+
 async def _board_for_owner(db: AsyncSession, board_id: uuid.UUID, user_id: uuid.UUID) -> Board:
     result = await db.execute(select(Board).where(Board.id == board_id, Board.user_id == user_id))
     board = result.scalar_one_or_none()
@@ -252,7 +268,7 @@ async def list_my_boards(
     result = await db.execute(
         select(Board).where(Board.user_id == current_user.id).order_by(Board.updated_at.desc())
     )
-    return [await _board_out(db, board) for board in result.scalars().all()]
+    return await _batch_board_out(db, list(result.scalars().all()))
 
 
 @router.get("/public", response_model=List[BoardOut])
@@ -268,7 +284,7 @@ async def list_public_boards(
         .limit(limit)
         .offset(offset)
     )
-    return [await _board_out(db, board) for board in result.scalars().all()]
+    return await _batch_board_out(db, list(result.scalars().all()))
 
 
 @router.get("/{board_id}", response_model=BoardOut)

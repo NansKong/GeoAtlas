@@ -248,28 +248,76 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
   });
 
   useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isMounted = true;
+    let retryDelay = 1500;
+
     setStreamQuote(null);
-    setStreamStatus("connecting");
-    const ws = new WebSocket(getMarketWsUrl([activeTicker]));
-    ws.onopen = () => setStreamStatus("live");
-    ws.onerror = () => setStreamStatus("offline");
-    ws.onclose = () => setStreamStatus("offline");
-    ws.onmessage = (event) => {
+
+    function connect() {
+      if (!isMounted) return;
+      setStreamStatus("connecting");
       try {
-        const payload = JSON.parse(event.data) as Partial<MarketStreamPriceUpdate> & { type?: string };
-        if (payload.type !== "price_update" || payload.ticker !== activeTicker) return;
-        if (typeof payload.price !== "number" || typeof payload.as_of !== "string") return;
-        setStreamQuote({
-          ticker: payload.ticker,
-          price: payload.price,
-          currency: payload.currency ?? "USD",
-          as_of: payload.as_of,
-          source: payload.source ?? "stream",
-          cache_hit: false,
-        });
-      } catch { /* ignore */ }
+        ws = new WebSocket(getMarketWsUrl([activeTicker]));
+      } catch {
+        setStreamStatus("offline");
+        scheduleReconnect();
+        return;
+      }
+
+      ws.onopen = () => {
+        if (!isMounted) return;
+        setStreamStatus("live");
+        retryDelay = 1500;
+      };
+
+      ws.onerror = () => {
+        if (!isMounted) return;
+        setStreamStatus("offline");
+      };
+
+      ws.onclose = () => {
+        if (!isMounted) return;
+        setStreamStatus("offline");
+        scheduleReconnect();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data) as Partial<MarketStreamPriceUpdate> & { type?: string };
+          if (payload.type !== "price_update" || payload.ticker !== activeTicker) return;
+          if (typeof payload.price !== "number" || typeof payload.as_of !== "string") return;
+          setStreamQuote({
+            ticker: payload.ticker,
+            price: payload.price,
+            currency: payload.currency ?? "USD",
+            as_of: payload.as_of,
+            source: payload.source ?? "stream",
+            cache_hit: false,
+          });
+        } catch { /* ignore */ }
+      };
+    }
+
+    function scheduleReconnect() {
+      if (!isMounted) return;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      reconnectTimeout = setTimeout(() => {
+        if (isMounted) {
+          retryDelay = Math.min(retryDelay * 1.5, 30000);
+          connect();
+        }
+      }, retryDelay);
+    }
+
+    connect();
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) ws.close();
     };
-    return () => ws.close();
   }, [activeTicker]);
 
   const activeQuote = streamQuote ?? quoteQuery.data;
