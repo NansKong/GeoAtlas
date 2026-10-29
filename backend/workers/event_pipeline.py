@@ -680,7 +680,7 @@ def _ensure_rule_based_impacts(
                 EventImpact.event_id == event_id,
                 EventImpact.asset_id == asset.id,
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if existing:
             continue
         session.add(
@@ -722,7 +722,7 @@ def _ensure_event_impacts(
                 EventImpact.event_id == event_id,
                 EventImpact.asset_id == asset.id,
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if existing:
             continue
 
@@ -763,7 +763,7 @@ def _ensure_l2_event_impacts(
                 EventImpact.event_id == event_id,
                 EventImpact.asset_id == asset.id,
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if existing:
             continue
         blended_confidence = max(0.0, min(1.0, ((confidence + relevance_score) / 2) * score))
