@@ -788,7 +788,7 @@ function CountryIntelligenceDrawer({
   const { data: sourceNews, isLoading: newsLoading } = useQuery({
     queryKey: ["country-source-news", country],
     queryFn: () => fetchNews({ country, limit: 8 }),
-    enabled: !!country,
+    enabled: !!country && !!point?.source_basis,
     staleTime: 60_000,
   });
 
@@ -961,7 +961,7 @@ function CountryIntelligenceDrawer({
                 </a>
               ))}
             </div>
-          ) : <p className="text-xs text-slate-500">No recent source articles for {country} in this feed.</p>}
+          ) : <p className="text-xs text-slate-500">{point?.source_basis ? `No recent source articles for ${country} in this feed.` : "Source coverage will appear when the map feed updates."}</p>}
         </div>
       </div>
     </div>
