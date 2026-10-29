@@ -1384,7 +1384,7 @@ export default function MacroMapPage() {
     <div className="ga-map-page min-h-screen bg-[#eef4f1] text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
       <div className="mx-auto max-w-[1720px] px-4 py-6 sm:px-6">
         {/* Top Control Header */}
-        <header className="mb-5 flex flex-col gap-4 rounded-[24px] bg-slate-950 p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <header className="ga-map-header mb-5 flex flex-col gap-4 rounded-[24px] bg-slate-950 p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
           {/* Branding & Status */}
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
@@ -1460,7 +1460,7 @@ export default function MacroMapPage() {
           </div>
 
           {/* Action Tools */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="ga-map-actions flex flex-wrap items-center gap-2">
             {/* Accessible List View / Globe Toggle */}
             <button
               type="button"
@@ -1542,11 +1542,11 @@ export default function MacroMapPage() {
         </header>
 
         {/* Secondary Control Ribbon: Time Window, Layers & Asset Filter */}
-        <button type="button" className="ga-map-filter-toggle" aria-controls="ga-map-ribbon" aria-expanded={showMobileFilters} onClick={() => setShowMobileFilters((open) => !open)}>{showMobileFilters ? "Hide map filters" : "Filters, layers & time range"}<ChevronRight size={16} /></button>
-        <div id="ga-map-ribbon" className={`ga-map-ribbon ${showMobileFilters ? "is-open" : ""} mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3`}>
+        <button type="button" className="ga-map-filter-toggle" aria-controls="ga-map-ribbon" aria-expanded={showMobileFilters} onClick={() => setShowMobileFilters((open) => !open)}><span>{showMobileFilters ? "Hide map filters" : `Filters · ${days}d · ${activeLayer.label}`}</span><ChevronRight size={16} className={showMobileFilters ? "rotate-90" : ""} /></button>
+        <div id="ga-map-ribbon" className={`ga-map-ribbon ${showMobileFilters ? "is-open" : ""} mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border border-slate-700 rounded-2xl p-3`}>
           {/* Time Window Pills */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Lookback:</span>
+          <div className="ga-map-ribbon-row flex items-center gap-1.5">
+            <span className="ga-map-ribbon-label text-[10px] font-bold uppercase tracking-wider text-slate-300 mr-1">Lookback:</span>
             {[7, 14, 30].map((w) => (
               <button
                 key={w}
@@ -1559,7 +1559,7 @@ export default function MacroMapPage() {
                 className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
                   days === w
                     ? "bg-emerald-500 text-slate-950 font-black shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    : "text-slate-200 hover:bg-slate-700 hover:text-white"
                 }`}
               >
                 {w}d
@@ -1568,8 +1568,8 @@ export default function MacroMapPage() {
           </div>
 
           {/* Layer Selector */}
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Map Layer:</span>
+          <div className="ga-map-ribbon-row flex flex-wrap items-center gap-1">
+            <span className="ga-map-ribbon-label text-[10px] font-bold uppercase tracking-wider text-slate-300 mr-1">Map Layer:</span>
             {MAP_LAYERS.map((layer) => (
               <button
                 key={layer.id}
@@ -1581,7 +1581,7 @@ export default function MacroMapPage() {
                 className={`rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer ${
                   activeLayerId === layer.id
                     ? "bg-slate-100 text-slate-950 font-black shadow-md"
-                    : "border border-slate-800 bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    : "border border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
                 }`}
               >
                 {layer.label}
@@ -1590,8 +1590,8 @@ export default function MacroMapPage() {
           </div>
 
           {/* Asset-First Lens Filter */}
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Asset Lens:</span>
+          <div className="ga-map-ribbon-row flex flex-wrap items-center gap-1">
+            <span className="ga-map-ribbon-label text-[10px] font-bold uppercase tracking-wider text-slate-300 mr-1">Asset Lens:</span>
             {ASSET_LENSES.map((al) => (
               <button
                 key={al.ticker}
@@ -1603,7 +1603,7 @@ export default function MacroMapPage() {
                 className={`rounded-full px-2.5 py-1 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   assetLens === al.ticker
                     ? "bg-amber-400 text-slate-950 font-black shadow-[0_0_10px_rgba(251,191,36,0.4)]"
-                    : "border border-slate-800 bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    : "border border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
                 }`}
               >
                 <span>{al.icon}</span>
