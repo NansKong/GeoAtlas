@@ -376,3 +376,16 @@ def test_new_geo_tagger_accuracy():
     # Assert dramatic improvement over legacy 14/30 (46.7%)
     assert accuracy >= 90.0, f"Expected >= 90% accuracy, got {accuracy:.1f}% ({passed}/{total})"
 
+
+def test_gulf_city_headlines_map_to_the_right_country():
+    from workers.geo_tagger import extract_countries
+
+    cases = [
+        ("Tanker incident reported off Doha coast", "Qatar"),
+        ("Port disruption reported in Dubai", "United Arab Emirates"),
+        ("Authorities in Abu Dhabi issue maritime alert", "United Arab Emirates"),
+    ]
+    for title, expected in cases:
+        primary, _ = extract_countries(title=title, body="", source="Reuters")
+        assert primary == expected, title
+

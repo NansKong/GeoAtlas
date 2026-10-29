@@ -34,6 +34,7 @@ import {
   fetchMaritimeChokepoints,
   fetchUnlocatedEvents,
   fetchEvents,
+  fetchNews,
   fetchMe,
   type EventHeatmapPoint,
   type MaritimeChokepoint,
@@ -469,14 +470,16 @@ function HotspotDot({
               color: color,
             }}
           >
-            {formatMultiple(point.baseline_ratio, point.baseline_status)}
+            {point.source_basis === "news" ? "NEWS" : formatMultiple(point.baseline_ratio, point.baseline_status)}
           </span>
         </div>
         <p className="mt-1 text-[11px] text-slate-300 font-medium">
-          {point.event_count} events · sev {point.avg_severity.toFixed(1)} · conflict {(point.conflict_share * 100).toFixed(0)}%
+          {point.source_basis === "news"
+            ? `${point.event_count} source articles · open for headlines`
+            : `${point.event_count} events · sev ${point.avg_severity.toFixed(1)} · conflict ${(point.conflict_share * 100).toFixed(0)}%`}
         </p>
         <p className="mt-1 text-[9px] text-emerald-400 font-semibold uppercase tracking-wider">
-          Click to inspect timeline & affected assets
+          {point.source_basis === "news" ? "Click to read source reporting" : "Click to inspect timeline & affected assets"}
         </p>
       </MarkerTooltip>
     </MapMarker>
@@ -782,6 +785,12 @@ function CountryIntelligenceDrawer({
     enabled: !!country,
     staleTime: 60_000,
   });
+  const { data: sourceNews, isLoading: newsLoading } = useQuery({
+    queryKey: ["country-source-news", country],
+    queryFn: () => fetchNews({ country, limit: 8 }),
+    enabled: !!country,
+    staleTime: 60_000,
+  });
 
   const isBuilding = point?.baseline_status === "building_baseline" || point?.baseline_ratio == null;
   const surge = point?.baseline_ratio ?? 1.0;
@@ -810,7 +819,13 @@ function CountryIntelligenceDrawer({
 
       {/* Drawer Content */}
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-        {/* Baseline Surge Summary Card */}
+        {point?.source_basis === "news" ? (
+          <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Source coverage</p>
+            <p className="mt-2 text-2xl font-black text-white">{point.event_count} articles</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">This country appears in recent reporting. Article mentions are shown separately from approved events and do not confirm a local conflict.</p>
+          </div>
+        ) : (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Baseline Velocity</span>
@@ -829,7 +844,7 @@ function CountryIntelligenceDrawer({
 
           <div className="grid grid-cols-3 gap-2 border-t border-slate-800 pt-3 mt-3 text-center">
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-bold">Window</p>
+              <p className="text-[10px] text-slate-400 uppercase font-bold">Events</p>
               <p className="text-base font-black text-white">{point?.event_count ?? 0}</p>
             </div>
             <div>
@@ -837,7 +852,7 @@ function CountryIntelligenceDrawer({
               <p className="text-base font-black text-slate-300">{point?.baseline_count ?? 0}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-bold">Conflict</p>
+              <p className="text-[10px] text-slate-400 uppercase font-bold">Conflict tagged</p>
               <p className="text-base font-black text-rose-400">{formatPct(point?.conflict_share)}</p>
             </div>
           </div>
@@ -859,6 +874,7 @@ function CountryIntelligenceDrawer({
             </button>
           )}
         </div>
+        )}
 
         {/* Top Catalyst Events */}
         <div>
@@ -876,7 +892,7 @@ function CountryIntelligenceDrawer({
               ))}
             </div>
           ) : !events || events.length === 0 ? (
-            <p className="text-xs text-slate-500 italic">No published events found for {country}.</p>
+            <p className="text-xs text-slate-400">No approved structured events yet. Source reporting appears below when available.</p>
           ) : (
             <div className="space-y-3">
               {events.map((e) => (
@@ -930,6 +946,22 @@ function CountryIntelligenceDrawer({
               ))}
             </div>
           )}
+        </div>
+        <div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">Latest source reporting</h3>
+            <span className="text-[10px] text-slate-500">Articles are not verified incidents</span>
+          </div>
+          {newsLoading ? <div className="h-20 animate-pulse rounded-2xl bg-slate-900" /> : sourceNews?.length ? (
+            <div className="space-y-2">
+              {sourceNews.map((article) => (
+                <a key={article.id} href={article.url} target="_blank" rel="noopener noreferrer" className="block rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 transition-colors hover:border-emerald-500/50 hover:bg-slate-900">
+                  <span className="text-[10px] font-semibold text-emerald-300">{article.source} · {article.published_at ? safeDistanceToNow(article.published_at) : "Date unavailable"}</span>
+                  <span className="mt-1 block text-xs font-semibold leading-snug text-white">{article.title}</span>
+                </a>
+              ))}
+            </div>
+          ) : <p className="text-xs text-slate-500">No recent source articles for {country} in this feed.</p>}
         </div>
       </div>
     </div>
@@ -1093,7 +1125,7 @@ function AccessibleListView({
               <th className="py-2.5 px-3 font-bold">Country</th>
               <th className="py-2.5 px-3 font-bold">Window Count</th>
               <th className="py-2.5 px-3 font-bold">Baseline Ratio</th>
-              <th className="py-2.5 px-3 font-bold">Conflict %</th>
+              <th className="py-2.5 px-3 font-bold">Conflict tagged</th>
               <th className="py-2.5 px-3 font-bold">Severity</th>
               <th className="py-2.5 px-3 font-bold text-right">Actions</th>
             </tr>
@@ -1104,7 +1136,7 @@ function AccessibleListView({
               return (
                 <tr key={p.country} className="hover:bg-slate-900/80 transition-colors">
                   <td className="py-3 px-3 font-bold text-white">{p.country}</td>
-                  <td className="py-3 px-3 font-mono">{p.event_count}</td>
+                  <td className="py-3 px-3 font-mono">{p.event_count} {p.source_basis === "news" ? "articles" : "events"}</td>
                   <td className="py-3 px-3">
                     <span
                       className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
@@ -1115,7 +1147,7 @@ function AccessibleListView({
                           : "bg-emerald-500/20 text-emerald-400 font-semibold"
                       }`}
                     >
-                      {formatMultiple(p.baseline_ratio, p.baseline_status)}
+                      {p.source_basis === "news" ? "Source news" : formatMultiple(p.baseline_ratio, p.baseline_status)}
                     </span>
                   </td>
                   <td className="py-3 px-3 font-mono">{formatPct(p.conflict_share)}</td>

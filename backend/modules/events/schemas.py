@@ -82,6 +82,7 @@ class EventListOut(BaseModel):
 class EventHeatmapPointOut(BaseModel):
     country: str
     event_count: int
+    source_basis: str = "events"  # "events" or "news"; never mix the counts
     avg_severity: float
     avg_confidence: float
     conflict_share: float

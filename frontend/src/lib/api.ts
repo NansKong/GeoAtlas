@@ -281,6 +281,7 @@ export interface MarketStreamPriceUpdate {
 export interface EventHeatmapPoint {
   country: string;
   event_count: number;
+  source_basis?: "events" | "news";
   avg_severity: number;
   avg_confidence: number;
   conflict_share: number;
@@ -546,6 +547,7 @@ export const fetchEvents = async (params?: {
 
 export const fetchNews = async (params?: {
   q?: string;
+  country?: string;
   category?: string;
   limit?: number;
   offset?: number;

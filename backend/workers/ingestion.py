@@ -4,6 +4,7 @@ Fetches articles from NewsAPI, GDELT, and RSS feeds.
 Deduplicates via SHA256 hash.
 Stores to news_articles table.
 """
+import calendar
 import hashlib
 import html
 import logging
@@ -13,7 +14,7 @@ from typing import Optional
 
 import feedparser
 import httpx
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
@@ -695,7 +696,10 @@ def fetch_rss(self, feed_url: str):
     """Generic RSS feed parser."""
     articles = []
     try:
-        feed = feedparser.parse(feed_url)
+        with httpx.Client(timeout=20, follow_redirects=True) as client:
+            response = client.get(feed_url, headers={"User-Agent": "GeoAtlas/0.1 news reader"})
+            response.raise_for_status()
+        feed = feedparser.parse(response.content)
         source_name = feed.feed.get("title", feed_url)
         for entry in feed.entries[:50]:
             title = entry.get("title") or ""
@@ -705,8 +709,7 @@ def fetch_rss(self, feed_url: str):
                 continue
             published = None
             if hasattr(entry, "published_parsed") and entry.published_parsed:
-                import time
-                published = datetime.fromtimestamp(time.mktime(entry.published_parsed), tz=timezone.utc)
+                published = datetime.fromtimestamp(calendar.timegm(entry.published_parsed), tz=timezone.utc)
             articles.append({
                 "title": title,
                 "content": summary or None,

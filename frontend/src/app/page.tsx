@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowRight, ArrowUpRight, Compass, Globe2, Newspaper, Radar, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Clock3, Compass, Globe2, Newspaper, Radar, RefreshCw, Search, Sparkles } from "lucide-react";
 import { CrossAssetCorrelation } from "@/components/CrossAssetCorrelation";
 import { EventPin, type EventPinData } from "@/components/EventPin";
 import { GeoHeatmapWidget } from "@/components/GeoHeatmapWidget";
@@ -48,6 +48,9 @@ export default function HomePage() {
   const eventItems = Array.isArray(events.data) ? events.data : [];
   const newsItems = Array.isArray(news.data) ? news.data : [];
   const predictionItems = Array.isArray(predictions.data) ? predictions.data : [];
+  const latestNewsTime = newsItems.reduce<string | undefined>((latest, item) =>
+    item.published_at && (!latest || item.published_at > latest) ? item.published_at : latest, undefined);
+  const feedDelayed = latestNewsTime ? Date.now() - new Date(latestNewsTime).getTime() > 24 * 60 * 60 * 1000 : false;
 
   return <div className="ga-shell">
     <SaveToBoardDialog open={saveTarget !== null} contentId={saveTarget?.id ?? ""} contentType="event" suggestedNote={saveTarget ? `${saveTarget.event_type.replace(/_/g, " ")} - ${saveTarget.title}` : ""} onClose={() => setSaveTarget(null)} />
@@ -61,6 +64,8 @@ export default function HomePage() {
         <Link href="/news" className="ga-button ga-button-secondary">Browse latest news <ArrowRight size={17} /></Link>
       </div>
     </section>
+
+    {feedDelayed && latestNewsTime && <div className="ga-stale-note"><Clock3 size={18} /><span>Source coverage is delayed. The newest article in this feed was published {new Date(latestNewsTime).toLocaleDateString()}. We are showing the latest available reporting while ingestion catches up.</span></div>}
 
     <div className="ga-metric-grid ga-stagger" aria-label="Current feed summary">
       <div className="ga-metric"><span>Published intelligence</span><strong>{events.isLoading || events.isError ? "—" : eventItems.length}</strong><p>{events.isError ? "Feed temporarily unavailable" : "Events shown in this view"}</p></div>

@@ -190,7 +190,13 @@ COUNTRY_ALIASES: dict[str, str] = {
     "south africa": "South Africa",
     "uae": "United Arab Emirates",
     "united arab emirates": "United Arab Emirates",
+    "emirati": "United Arab Emirates",
+    "dubai": "United Arab Emirates",
+    "abu dhabi": "United Arab Emirates",
+    "ras al khaimah": "United Arab Emirates",
     "qatar": "Qatar",
+    "qatari": "Qatar",
+    "doha": "Qatar",
     "lebanon": "Lebanon",
     "chad": "Chad",
     "sudan": "Sudan",
@@ -286,7 +292,17 @@ def _article_plain_text(article: NewsArticle) -> str:
 
 
 def _infer_news_category(article: NewsArticle) -> tuple[str, Optional[str]]:
-    text = _article_plain_text(article).lower()
+    headline = (strip_html(article.title) or "").lower()
+    if re.search(r"\battack ads?\b", headline):
+        return EventType.ELECTION.value, EventType.ELECTION.value
+    # A focused headline should not inherit an unrelated topic from a long RSS
+    # summary (for example, an AI stock story mentioning a war in its body).
+    headline_has_topic = any(
+        re.search(rf"\b{re.escape(keyword)}\b", headline)
+        for keywords in NEWS_CATEGORY_KEYWORDS.values()
+        for keyword in keywords
+    )
+    text = headline if headline_has_topic else _article_plain_text(article).lower()
     best_category = "general"
     best_hits = 0
 
@@ -433,6 +449,7 @@ def _news_heatmap_points(
             EventHeatmapPointOut(
                 country=country,
                 event_count=count,
+                source_basis="news",
                 avg_severity=round(bucket["severity_sum"] / count, 3),
                 avg_confidence=round(bucket["confidence_sum"] / count, 3),
                 conflict_share=round(bucket["conflict_count"] / count, 3),
@@ -958,9 +975,8 @@ async def event_heatmap(
         )
 
     points.sort(key=lambda row: row.event_count, reverse=True)
-    if points:
-        return points[:limit]
-
+    # Source articles can cover countries that have not yet produced an approved
+    # structured event. Keep them visible as separate, news-backed map points.
     article_rows = await db.execute(
         select(NewsArticle)
         .where(
@@ -968,10 +984,15 @@ async def event_heatmap(
             NewsArticle.published_at >= window_start,
         )
         .order_by(NewsArticle.published_at.desc())
-        .limit(max(limit * 6, 120))
+        .limit(max(limit * 15, 1200))
     )
     articles = article_rows.scalars().all()
-    return _news_heatmap_points(articles, requested_event_type=parsed_event_type, limit=limit)
+    news_points = _news_heatmap_points(
+        articles, requested_event_type=parsed_event_type, limit=max(limit, 200)
+    )
+    existing_countries = {point.country for point in points}
+    points.extend(point for point in news_points if point.country not in existing_countries)
+    return points[:limit]
 
 
 @router.get("/maritime", response_model=List[MaritimeChokepointOut])
@@ -1493,12 +1514,13 @@ async def get_event(event_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 @news_router.get("", response_model=List[NewsArticleOut])
 async def list_news(
     q: Optional[str] = Query(None, description="Free-text topic search"),
+    country: Optional[str] = Query(None, description="Canonical country for source coverage"),
     category: Optional[str] = Query(None, description="Derived article category"),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(NewsArticle).order_by(NewsArticle.published_at.desc())
+    query = select(NewsArticle).order_by(NewsArticle.published_at.desc().nullslast())
     if q:
         search_term = q.strip()
         if search_term:
@@ -1518,6 +1540,11 @@ async def list_news(
     result = await db.execute(query.limit(MAX_FETCH))
     articles = result.scalars().all()
     items = [_to_news_article_out(article) for article in articles]
+    if country:
+        items = [
+            item for item, article in zip(items, articles)
+            if country in _extract_countries_from_text(_article_plain_text(article))
+        ]
     if category:
         normalized_category = category.strip().lower().replace(" ", "_")
         items = [item for item in items if item.category == normalized_category]

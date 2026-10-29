@@ -266,10 +266,20 @@ def _article_text(article: NewsArticle) -> str:
 
 
 def _infer_event_type(text: str) -> tuple[Optional[EventType], float]:
+    headline = text.split("\n", 1)[0].lower()
+    # Political attack ads and routine market selloffs are not armed conflict.
+    if re.search(r"\battack ads?\b", headline):
+        return EventType.ELECTION, 0.70
+    market_only_headline = bool(
+        re.search(r"\b(stock|shares|earnings|investors?|market|ai spending)\b", headline)
+        and not re.search(r"\b(missile|airstrike|bombing|armed|war|drone|military|attack|clash|invasion)\b", headline)
+    )
     model_label, model_score = predict_event_type(text)
     if model_label:
         try:
-            return EventType(model_label), float(model_score or 0.0)
+            predicted = EventType(model_label)
+            if predicted != EventType.CONFLICT or not market_only_headline:
+                return predicted, float(model_score or 0.0)
         except ValueError:
             pass
 
@@ -278,7 +288,9 @@ def _infer_event_type(text: str) -> tuple[Optional[EventType], float]:
     best_hits = 0
 
     for event_type, keywords in EVENT_KEYWORDS.items():
-        hits = sum(1 for keyword in keywords if keyword in text_l)
+        if market_only_headline and event_type == EventType.CONFLICT:
+            continue
+        hits = sum(1 for keyword in keywords if re.search(rf"\b{re.escape(keyword)}\b", text_l))
         if hits > best_hits:
             best_type = event_type
             best_hits = hits

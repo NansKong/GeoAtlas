@@ -65,8 +65,8 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
   const isUp = closes[closes.length - 1] >= closes[0];
 
   // Layout
-  const W = 800, H = 250;
-  const padL = 12, padR = 80, padT = 16, padB = 30;
+  const W = 800, H = 280;
+  const padL = 16, padR = 80, padT = 22, padB = 34;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
@@ -113,7 +113,7 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
     return { x: toX(idx), label };
   });
 
-  const stroke = isUp ? "#10b981" : "#f43f5e";
+  const stroke = isUp ? "#078f70" : "#e64867";
   const gradientId = `grad-${ticker}`;
   const glowId = `glow-${ticker}`;
 
@@ -130,8 +130,8 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={stroke} stopOpacity="0.25" />
-          <stop offset="75%" stopColor={stroke} stopOpacity="0.04" />
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
+          <stop offset="75%" stopColor={stroke} stopOpacity="0.03" />
           <stop offset="100%" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
         <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
@@ -143,19 +143,18 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
         </filter>
       </defs>
 
-      {/* White Background */}
-      <rect x="0" y="0" width={W} height={H} fill="#ffffff" />
+      <rect x="0" y="0" width={W} height={H} rx="16" fill="#f4faf7" />
 
       {/* Dashed horizontal grid lines + Y labels */}
       {gridLines.map(({ y, value }) => (
         <g key={y}>
           <line
             x1={padL} y1={y} x2={padL + plotW} y2={y}
-            stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4,6"
+            stroke="#dcebe5" strokeWidth="1" strokeDasharray="5,6"
           />
           <text
             x={padL + plotW + 6} y={y + 4}
-            fill="#9ca3af" fontSize="9" textAnchor="start" fontWeight="500"
+            fill="#638078" fontSize="12" textAnchor="start" fontWeight="600"
           >
             {value >= 1000
               ? value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -172,7 +171,7 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
         d={linePath}
         fill="none"
         stroke={stroke}
-        strokeWidth="2.2"
+        strokeWidth="3"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
@@ -180,7 +179,7 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
       {/* Vertical line at last point */}
       <line
         x1={lastPt.x} y1={padT} x2={lastPt.x} y2={padT + plotH}
-        stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,4"
+        stroke="#b6d5ca" strokeWidth="1" strokeDasharray="3,4"
       />
 
       {/* Glowing dot */}
@@ -195,7 +194,7 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
       />
       <text
         x={padL + plotW + padR / 2} y={labelY + 3}
-        fill="#fff" fontSize="9" fontWeight="700" textAnchor="middle"
+        fill="#fff" fontSize="11" fontWeight="700" textAnchor="middle"
       >
         {(lastPrice ?? 0) >= 1000
           ? (lastPrice ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -204,7 +203,7 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
 
       {/* X-axis time labels */}
       {xLabels.map(({ x, label }) => (
-        <text key={x} x={x} y={H - 6} fill="#9ca3af" fontSize="9" textAnchor="middle" fontWeight="500">
+        <text key={x} x={x} y={H - 7} fill="#638078" fontSize="12" textAnchor="middle" fontWeight="600">
           {label}
         </text>
       ))}
@@ -327,6 +326,13 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
   const delta = prevClose !== undefined && lastClose !== undefined ? lastClose - prevClose : undefined;
   const deltaPct = prevClose && delta !== undefined ? (delta / prevClose) * 100 : undefined;
   const isUp = (delta ?? 0) >= 0;
+  const firstTrendClose = orderedPoints[0]?.close;
+  const lastTrendClose = orderedPoints[orderedPoints.length - 1]?.close;
+  const trend30dPct = firstTrendClose && lastTrendClose
+    ? ((lastTrendClose - firstTrendClose) / firstTrendClose) * 100
+    : undefined;
+  const chartLow = orderedPoints.length ? Math.min(...orderedPoints.map((point) => point.close)) : undefined;
+  const chartHigh = orderedPoints.length ? Math.max(...orderedPoints.map((point) => point.close)) : undefined;
 
   const onApplyTicker = () => {
     const n = inputTicker.trim().toUpperCase();
@@ -337,7 +343,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
   const streamColor = streamStatus === "live" ? "text-emerald-500" : "text-gray-400";
 
   return (
-    <section className="mb-7 rounded-[1.4rem] border border-gray-200 overflow-hidden shadow-sm bg-white">
+    <section className="ga-market-panel mb-7 rounded-[1.4rem] border border-gray-200 overflow-hidden shadow-sm bg-white">
       {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-4 border-b border-gray-100">
         <div className="flex items-center gap-2">
@@ -388,7 +394,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
       )}
 
       {/* Body: left stats + right chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(230px,300px)_minmax(0,1fr)] items-stretch">
         {/* Left: price + fundamentals */}
         <div className="p-5 border-b lg:border-b-0 lg:border-r border-gray-100 flex flex-col justify-between">
           <div>
@@ -419,7 +425,6 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
 
                 <div className="mt-4 space-y-1 text-xs text-gray-400">
                   <p>Source: <span className="text-gray-600 font-medium">{activeQuote.source}</span></p>
-                  <p>Cache: <span className="text-gray-600 font-medium">{activeQuote.cache_hit ? "hit" : "miss"}</span></p>
                   <p>Updated: <span className="text-gray-600 font-medium">{safeDistanceToNow(activeQuote.as_of)}</span></p>
                 </div>
               </>
@@ -453,7 +458,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
         </div>
 
         {/* Right: white chart filling height */}
-        <div className="bg-white p-4 flex flex-col justify-between relative overflow-hidden">
+        <div className="ga-market-chart-wrap p-4 sm:p-6 flex min-w-0 flex-col justify-between relative overflow-hidden">
           {ohlcvQuery.isLoading ? (
             <div className="min-h-[260px] flex items-center justify-center">
               <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
@@ -464,32 +469,21 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
             </div>
           ) : (
             <>
-              <div className="flex-1 w-full min-h-[240px]">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-600">Price movement</p>
+                  <h3 className="mt-1 text-lg font-bold text-slate-900">{activeTicker} over 30 trading days</h3>
+                </div>
+                {trend30dPct !== undefined && <span className={`rounded-full px-3 py-1.5 text-sm font-bold tabular-nums ${trend30dPct >= 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700"}`}>{trend30dPct >= 0 ? "+" : ""}{trend30dPct.toFixed(2)}% over period</span>}
+              </div>
+              <div className="ga-market-chart h-[270px] w-full sm:h-[310px]">
                 <PriceChart points={orderedPoints} ticker={activeTicker} />
               </div>
-              {/* Footer */}
-              {(() => {
-                const firstClose = orderedPoints.length > 0 ? orderedPoints[0]?.close : undefined;
-                const lastClose = orderedPoints.length > 0 ? orderedPoints[orderedPoints.length - 1]?.close : undefined;
-                const trend30dPct = firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : undefined;
-                return (
-                  <div className="flex items-center justify-between pt-2 text-[10px] text-gray-400 border-t border-gray-100 mt-1">
-                    <div className="flex items-center gap-2">
-                      <span>Last 30 trading days + live tick</span>
-                      {trend30dPct !== undefined && (
-                        <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
-                          trend30dPct >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                        }`}>
-                          30D Trend: {trend30dPct >= 0 ? "+" : ""}{trend30dPct.toFixed(2)}%
-                        </span>
-                      )}
-                    </div>
-                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
-                      {ohlcvQuery.data.source} · {ohlcvQuery.data.cache_hit ? "cache hit" : "fresh"}
-                    </span>
-                  </div>
-                );
-              })()}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <span>Low <strong className="ml-1 text-slate-800">{chartLow?.toFixed(2) ?? "—"}</strong></span>
+                <span>High <strong className="ml-1 text-slate-800">{chartHigh?.toFixed(2) ?? "—"}</strong></span>
+                <span>30 trading days · {ohlcvQuery.data.source}</span>
+              </div>
             </>
           )}
         </div>
