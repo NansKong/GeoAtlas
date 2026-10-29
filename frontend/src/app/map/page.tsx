@@ -1877,7 +1877,7 @@ export default function MacroMapPage() {
                       <div>
                         <p className="font-bold text-xs text-white">{r.country}</p>
                         <p className="mt-0.5 text-[10px] text-slate-400">
-                          {r.event_count} events · sev {r.avg_severity.toFixed(1)} · conflict {formatPct(r.conflict_share)}
+                          {r.event_count} {r.source_basis === "news" ? "articles" : "events"} · sev {r.avg_severity.toFixed(1)} · conflict {formatPct(r.conflict_share)}
                         </p>
                       </div>
                       <div className="text-right">
@@ -1925,7 +1925,7 @@ export default function MacroMapPage() {
                       </p>
                     </div>
                     <span className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs font-black text-emerald-400">
-                      {r.event_count} events
+                      {r.event_count} {r.source_basis === "news" ? "articles" : "events"}
                     </span>
                   </button>
                 ))}
