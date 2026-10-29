@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, ChevronRight, Compass, Globe2, LayoutGrid, Menu, Newspaper, Search, Sparkles, UserRound, X } from "lucide-react";
+import { Bell, ChevronRight, Compass, Globe2, LayoutGrid, Menu, Moon, Newspaper, Search, Sparkles, Sun, UserRound, X } from "lucide-react";
 import { fetchMe } from "@/lib/api";
 
 const primary = [
@@ -21,9 +21,22 @@ export function Navbar() {
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const desktopSearchRef = useRef<HTMLInputElement>(null);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe, retry: false, staleTime: 300_000 });
   const isOperator = me?.role === "admin" || me?.role === "reviewer";
+
+  useEffect(() => {
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.classList.toggle("dark", next === "dark");
+    document.documentElement.style.colorScheme = next;
+    window.localStorage.setItem("geoatlas-theme", next);
+    setTheme(next);
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -70,6 +83,7 @@ export function Navbar() {
           </form>
 
           <div className="ga-navbar-actions">
+            <button type="button" className="ga-icon-button ga-theme-toggle" aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} title={theme === "dark" ? "Light theme" : "Dark theme"} aria-pressed={theme === "dark"} onClick={toggleTheme}>{theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}</button>
             <button type="button" className="ga-icon-button ga-mobile-search-toggle" aria-label="Search" aria-expanded={searchOpen} onClick={() => setSearchOpen((open) => !open)}><Search size={20} /></button>
             <Link href="/alerts" className="ga-icon-button" aria-label="Alerts"><Bell size={19} /></Link>
             <Link href="/login" className="ga-icon-button" aria-label={me ? "Account" : "Sign in"}><UserRound size={19} /></Link>
