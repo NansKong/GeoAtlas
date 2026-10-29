@@ -33,11 +33,13 @@ export default function HomePage() {
   const events = useQuery({
     queryKey: ["events", activeType, appliedQuery],
     queryFn: () => fetchEvents({ event_type: activeType || undefined, q: appliedQuery || undefined, status: "published", limit: 80 }),
+    refetchInterval: 60_000,
   });
   const news = useQuery({
     queryKey: ["news-feed", appliedQuery],
     queryFn: () => fetchNews({ q: appliedQuery || undefined, limit: 24 }),
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
   const predictions = useQuery({
     queryKey: ["prediction-feed-preview"],
@@ -51,6 +53,8 @@ export default function HomePage() {
   const latestNewsTime = newsItems.reduce<string | undefined>((latest, item) =>
     item.published_at && (!latest || item.published_at > latest) ? item.published_at : latest, undefined);
   const feedDelayed = latestNewsTime ? Date.now() - new Date(latestNewsTime).getTime() > 24 * 60 * 60 * 1000 : false;
+  const latestEventTime = eventItems[0]?.published_at;
+  const eventsDelayed = latestEventTime ? Date.now() - new Date(latestEventTime).getTime() > 24 * 60 * 60 * 1000 : false;
 
   return <div className="ga-shell">
     <SaveToBoardDialog open={saveTarget !== null} contentId={saveTarget?.id ?? ""} contentType="event" suggestedNote={saveTarget ? `${saveTarget.event_type.replace(/_/g, " ")} - ${saveTarget.title}` : ""} onClose={() => setSaveTarget(null)} />
@@ -94,6 +98,7 @@ export default function HomePage() {
       <div className="ga-chip-row ga-filter-row" role="group" aria-label="Event type">
         {EVENT_TYPES.map((type) => <button key={type.value} type="button" className={`ga-chip ${activeType === type.value ? "is-active" : ""}`} aria-pressed={activeType === type.value} onClick={() => { setActiveType(type.value); setShowAllEvents(false); }}>{type.label}</button>)}
       </div>
+      {eventsDelayed && newsItems.length > 0 && <div className="mb-5 rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-slate-700"><strong className="text-teal-900">Latest source reporting</strong><p className="mt-1">Published event analysis is catching up. These articles are current reporting and have not yet been verified as structured events.</p><div className="ga-news-grid mt-4">{newsItems.slice(0, 3).map((article) => <NewsFeedCard key={article.id} article={article} />)}</div></div>}
       {events.isLoading ? <div className="ga-loading-grid">{[0,1,2].map((item) => <div key={item} className="skeleton ga-panel" />)}</div>
       : events.isError ? <RetryCard title="Events are unavailable" detail="We couldn’t load this feed right now." onRetry={() => events.refetch()} />
       : eventItems.length ? <><MasonryGrid>{(showAllEvents ? eventItems : eventItems.slice(0, 9)).map((event) => <EventPin key={event.id} event={event} onSave={setSaveTarget} />)}</MasonryGrid>{eventItems.length > 9 && <button className="ga-show-more" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? "Show fewer events" : `Show all ${eventItems.length} events`} <ArrowRight size={16} /></button>}</>

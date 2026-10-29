@@ -9,6 +9,7 @@ import {
   fetchMarketFundamentals,
   fetchMarketOHLCV,
   fetchMarketQuote,
+  fetchMarketSnapshot,
   getMarketWsUrl,
   MarketQuote,
   MarketStreamPriceUpdate,
@@ -48,6 +49,7 @@ function mergeLivePoint(points: OHLCVPoint[], quote?: MarketQuote | null): OHLCV
 // ── Professional Light Theme Chart ───────────────────────────────────────────
 function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const ordered = toAscending(points).filter(
     (p) => p && typeof p.close === "number" && !isNaN(p.close)
@@ -84,6 +86,10 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
   const coords = closes.map((c, i) => ({ x: toX(i), y: toY(c) }));
   const lastPt = coords[coords.length - 1];
   const lastPrice = closes[closes.length - 1];
+  const selectedIndex = hoverIndex !== null && hoverIndex < coords.length ? hoverIndex : null;
+  const selectedPoint = selectedIndex !== null ? coords[selectedIndex] : null;
+  const selectedDate = selectedIndex !== null ? safeDate(ordered[selectedIndex].timestamp) : null;
+  const selectedPrice = selectedIndex !== null ? closes[selectedIndex] : null;
 
   const linePath = coords.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
   const areaPath = [
@@ -127,6 +133,14 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
       className="w-full h-full"
       preserveAspectRatio="none"
       aria-label={`${ticker} price chart`}
+      onPointerMove={(event) => {
+        const bounds = svgRef.current?.getBoundingClientRect();
+        if (!bounds) return;
+        const x = ((event.clientX - bounds.left) / bounds.width) * W;
+        setHoverIndex(Math.max(0, Math.min(ordered.length - 1, Math.round(((x - padL) / plotW) * (ordered.length - 1)))));
+      }}
+      onPointerLeave={() => setHoverIndex(null)}
+      style={{ touchAction: "pan-y", cursor: "crosshair" }}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -186,6 +200,16 @@ function PriceChart({ points, ticker }: { points: OHLCVPoint[]; ticker: string }
       <circle cx={lastPt.x} cy={lastPt.y} r="6" fill={stroke} opacity="0.25" filter={`url(#${glowId})`} />
       <circle cx={lastPt.x} cy={lastPt.y} r="3.5" fill={stroke} />
 
+      {selectedPoint && selectedPrice !== null && (
+        <g pointerEvents="none">
+          <line x1={selectedPoint.x} y1={padT} x2={selectedPoint.x} y2={padT + plotH} stroke="#416d64" strokeWidth="1.5" strokeDasharray="4,4" />
+          <circle cx={selectedPoint.x} cy={selectedPoint.y} r="7" fill="white" stroke={stroke} strokeWidth="3" />
+          <rect x={Math.max(4, Math.min(selectedPoint.x - 66, W - 140))} y={Math.max(4, selectedPoint.y - 52)} width="132" height="39" rx="8" fill="#102b2b" />
+          <text x={Math.max(10, Math.min(selectedPoint.x - 60, W - 134))} y={Math.max(18, selectedPoint.y - 34)} fill="white" fontSize="13" fontWeight="700">{selectedPrice.toFixed(2)} {ticker === "BTC" ? "USD" : ""}</text>
+          <text x={Math.max(10, Math.min(selectedPoint.x - 60, W - 134))} y={Math.max(31, selectedPoint.y - 19)} fill="#a6d5cc" fontSize="10">{selectedDate?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</text>
+        </g>
+      )}
+
       {/* Current price badge on the right */}
       <rect
         x={padL + plotW + 2} y={labelY - 9}
@@ -244,6 +268,12 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
     queryKey: ["market-fundamentals", activeTicker],
     queryFn: () => fetchMarketFundamentals(activeTicker),
     staleTime: 6 * 60 * 60 * 1000,
+  });
+  const snapshotQuery = useQuery({
+    queryKey: ["market-snapshot", activeTicker],
+    queryFn: fetchMarketSnapshot,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -321,10 +351,17 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
 
   const activeQuote = streamQuote ?? quoteQuery.data;
   const orderedPoints = ohlcvQuery.data?.points ? mergeLivePoint(ohlcvQuery.data.points, activeQuote) : [];
-  const prevClose = orderedPoints.length >= 2 ? orderedPoints[orderedPoints.length - 2].close : undefined;
+  const snapshotItem = snapshotQuery.data?.snapshot?.find((item) => item.ticker === activeTicker);
+  const dailyPoints = toAscending(ohlcvQuery.data?.points ?? []);
+  const latestDaily = dailyPoints[dailyPoints.length - 1];
+  const prevClose = dailyPoints.length >= 2 ? dailyPoints[dailyPoints.length - 2].close : undefined;
   const lastClose = activeQuote?.price ?? (orderedPoints.length >= 1 ? orderedPoints[orderedPoints.length - 1].close : undefined);
-  const delta = prevClose !== undefined && lastClose !== undefined ? lastClose - prevClose : undefined;
-  const deltaPct = prevClose && delta !== undefined ? (delta / prevClose) * 100 : undefined;
+  const historyDelta = prevClose !== undefined && lastClose !== undefined && latestDaily
+    ? lastClose - prevClose : undefined;
+  const historyDeltaPct = prevClose && historyDelta !== undefined ? (historyDelta / prevClose) * 100 : undefined;
+  const deltaPct = snapshotItem && Number.isFinite(snapshotItem.change) ? snapshotItem.change : historyDeltaPct;
+  const delta = deltaPct !== undefined && lastClose !== undefined
+    ? lastClose * deltaPct / (100 + deltaPct) : historyDelta;
   const isUp = (delta ?? 0) >= 0;
   const firstTrendClose = orderedPoints[0]?.close;
   const lastTrendClose = orderedPoints[orderedPoints.length - 1]?.close;

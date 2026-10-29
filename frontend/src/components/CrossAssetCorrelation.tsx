@@ -75,8 +75,8 @@ async function fetchMissingQuotes(missingTickers: string[]): Promise<Map<string,
   const fetches = missingTickers.map(async (ticker) => {
     try {
       const quote = await fetchMarketQuote(ticker);
-      // The quote API returns price but not change %; set change to 0 as fallback
-      results.set(ticker, { price: quote.price, change: 0 });
+      // The quote API has no daily change; never present an invented zero.
+      results.set(ticker, { price: quote.price, change: Number.NaN });
     } catch {
       // Ticker not available, skip
     }
@@ -90,12 +90,14 @@ export function CrossAssetCorrelation() {
     queryKey: ["market-snapshot-crossasset"],
     queryFn: fetchMarketSnapshot,
     staleTime: 10_000,
+    refetchInterval: 30_000,
   });
 
   const { data: events } = useQuery({
     queryKey: ["events-crossasset"],
     queryFn: () => fetchEvents({ status: "published", limit: 60 }),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const snapshotMap = useMemo(() => {
@@ -118,6 +120,7 @@ export function CrossAssetCorrelation() {
     queryFn: () => fetchMissingQuotes(missingTickers),
     enabled: missingTickers.length > 0,
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const correlations = useMemo(() => findCorrelations(events), [events]);
@@ -128,7 +131,7 @@ export function CrossAssetCorrelation() {
     return {
       ...b,
       price: snapshotData?.price ?? fallback?.price ?? null,
-      change: snapshotData?.change ?? fallback?.change ?? null,
+      change: Number.isFinite(snapshotData?.change) ? snapshotData!.change : null,
       tag: snapshotData?.tag,
       impactScore: snapshotData?.impact_score,
     };
@@ -140,6 +143,7 @@ export function CrossAssetCorrelation() {
         <Layers className="h-5 w-5 text-geo-600" />
         <h2 className="text-base font-bold text-gray-900">Cross-Asset Intelligence</h2>
         <span className="rounded-full bg-geo-50 px-2 py-0.5 text-xs font-medium text-geo-700">TradFi + Crypto</span>
+        <span className="ml-auto text-[11px] text-slate-500">{snapshot?.last_updated ? `Updated ${new Date(snapshot.last_updated).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Updating quotes"}</span>
       </div>
 
       {/* Benchmark Strip */}
@@ -175,7 +179,7 @@ export function CrossAssetCorrelation() {
                 {hasPrice ? (
                   <>
                     {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {b.change !== null ? `${isUp ? "+" : ""}${b.change.toFixed(2)}%` : "—"}
+                    {b.change !== null ? `${isUp ? "+" : ""}${b.change.toFixed(2)}%` : "Daily change unavailable"}
                   </>
                 ) : (
                   <span className="text-gray-400">awaiting data</span>

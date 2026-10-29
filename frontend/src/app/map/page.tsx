@@ -1271,6 +1271,12 @@ export default function MacroMapPage() {
     queryFn: () => fetchUnlocatedEvents(5),
     staleTime: 60_000,
   });
+  const { data: assetEvents = [] } = useQuery({
+    queryKey: ["map-asset-events", assetLens],
+    queryFn: () => fetchEvents({ status: "published", limit: 100 }),
+    enabled: Boolean(assetLens),
+    staleTime: 60_000,
+  });
 
   // Filter plotted points: exclude Unknown and Global
   const plotted = useMemo(() => {
@@ -1287,8 +1293,13 @@ export default function MacroMapPage() {
   // Asset lens filtering
   const filteredPlotted = useMemo(() => {
     if (!assetLens) return plotted;
-    return plotted;
-  }, [plotted, assetLens]);
+    const countries = new Set(assetEvents
+      .filter((event) => event.affected_assets?.some((asset) => asset.ticker === assetLens))
+      .map((event) => event.country));
+    return plotted.filter((point) => countries.has(point.country));
+  }, [plotted, assetLens, assetEvents]);
+
+  const mapRef = useCallback((instance: MapRef | null) => setMapInstance(instance), []);
 
   const topSurges = useMemo(() => {
     return [...plotted]
@@ -1370,10 +1381,10 @@ export default function MacroMapPage() {
   }, []);
 
   return (
-    <div className="ga-map-page min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div className="ga-map-page min-h-screen bg-[#eef4f1] text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
       <div className="mx-auto max-w-[1720px] px-4 py-6 sm:px-6">
         {/* Top Control Header */}
-        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800/80 pb-5">
+        <header className="mb-5 flex flex-col gap-4 rounded-[24px] bg-slate-950 p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
           {/* Branding & Status */}
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
@@ -1639,7 +1650,7 @@ export default function MacroMapPage() {
                 }}
               />
             ) : (
-              <div className="relative h-[660px] lg:h-[calc(100vh-220px)] min-h-[580px] max-h-[840px] w-full">
+              <div className="relative h-[470px] sm:h-[570px] lg:h-[calc(100vh-220px)] lg:min-h-[580px] max-h-[840px] w-full">
                 {isHeatmapError ? (
                   <MapFailureState onRetry={() => refetchHeatmap()} />
                 ) : isHeatmapLoading && !mapInstance ? (
@@ -1647,10 +1658,10 @@ export default function MacroMapPage() {
                 ) : (
                   <>
                     <MapComponent
-                      ref={(ref) => setMapInstance(ref)}
+                      ref={mapRef}
                       theme="dark"
                       center={[15, 20]}
-                      zoom={1.05}
+                      zoom={1.55}
                       minZoom={0.8}
                       maxZoom={6.5}
                       renderWorldCopies={false}
@@ -1700,14 +1711,6 @@ export default function MacroMapPage() {
                       onToggleColorblind={() => setColorblindMode((v) => !v)}
                     />
 
-                    {/* 30-Day Time Replay Slider (Client-Side Non-Refetching) */}
-                    <TimeReplayBar
-                      dayOffset={dayOffset}
-                      setDayOffset={setDayOffset}
-                      isPlaying={isPlaying}
-                      setIsPlaying={setIsPlaying}
-                      totalDays={days}
-                    />
                   </>
                 )}
               </div>
