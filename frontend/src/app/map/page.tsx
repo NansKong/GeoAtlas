@@ -622,7 +622,7 @@ function LegendOverlay({
   onToggleColorblind: () => void;
 }) {
   return (
-    <div className="absolute bottom-5 left-5 z-20 rounded-2xl border border-slate-700/80 bg-slate-900/95 backdrop-blur-md px-4 py-3 shadow-2xl text-xs text-white max-w-xs">
+    <div className="absolute bottom-5 left-5 z-20 rounded-2xl border border-slate-700/80 bg-slate-900 backdrop-blur-md px-4 py-3 shadow-2xl text-xs text-white max-w-xs">
       <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2 mb-2">
         <div>
           <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Active Layer</p>
@@ -720,7 +720,7 @@ function TimeReplayBar({
   }, [dayOffset, totalDays]);
 
   return (
-    <div className="absolute bottom-5 right-5 z-20 flex items-center gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/95 backdrop-blur-md px-4 py-2.5 shadow-2xl text-white">
+    <div className="absolute bottom-5 right-5 z-20 flex items-center gap-3 rounded-2xl border border-slate-700/80 bg-slate-900 backdrop-blur-md px-4 py-2.5 shadow-2xl text-white">
       <button
         type="button"
         onClick={() => {
@@ -799,7 +799,7 @@ function CountryIntelligenceDrawer({
   return (
     <div className="fixed inset-x-0 bottom-0 max-h-[85vh] sm:inset-y-0 sm:right-0 sm:left-auto sm:max-w-md sm:max-h-full w-full bg-slate-950 border-t sm:border-t-0 sm:border-l border-slate-800 text-white shadow-2xl flex flex-col overflow-hidden z-50 rounded-t-3xl sm:rounded-none animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
       {/* Drawer Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
             <Globe2 className="h-5 w-5 text-emerald-400" />
@@ -826,7 +826,7 @@ function CountryIntelligenceDrawer({
             <p className="mt-2 text-xs leading-relaxed text-slate-300">This country appears in recent reporting. Article mentions are shown separately from approved events and do not confirm a local conflict.</p>
           </div>
         ) : (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Baseline Velocity</span>
             <span
@@ -898,7 +898,7 @@ function CountryIntelligenceDrawer({
               {events.map((e) => (
                 <div
                   key={e.id}
-                  className="rounded-2xl border border-slate-800/90 bg-slate-900/60 hover:bg-slate-900 p-3.5 transition-all"
+                  className="rounded-2xl border border-slate-800/90 bg-slate-900 hover:bg-slate-900 p-3.5 transition-all"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase tracking-wider">
@@ -955,7 +955,7 @@ function CountryIntelligenceDrawer({
           {newsLoading ? <div className="h-20 animate-pulse rounded-2xl bg-slate-900" /> : sourceNews?.length ? (
             <div className="space-y-2">
               {sourceNews.map((article) => (
-                <a key={article.id} href={article.url} target="_blank" rel="noopener noreferrer" className="block rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 transition-colors hover:border-emerald-500/50 hover:bg-slate-900">
+                <a key={article.id} href={article.url} target="_blank" rel="noopener noreferrer" className="block rounded-2xl border border-slate-800 bg-slate-900 p-3.5 transition-colors hover:border-emerald-500/50 hover:bg-slate-900">
                   <span className="text-[10px] font-semibold text-emerald-300">{article.source} · {article.published_at ? safeDistanceToNow(article.published_at) : "Date unavailable"}</span>
                   <span className="mt-1 block text-xs font-semibold leading-snug text-white">{article.title}</span>
                 </a>
@@ -997,7 +997,7 @@ function UnlocatedEventsDrawer({
   return (
     <div className="fixed inset-x-0 bottom-0 max-h-[85vh] sm:inset-y-0 sm:right-0 sm:left-auto sm:max-w-lg sm:max-h-full w-full bg-slate-950 border-t sm:border-t-0 sm:border-l border-slate-800 text-white shadow-2xl flex flex-col overflow-hidden z-50 rounded-t-3xl sm:rounded-none animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
       {/* Drawer Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
             <Compass className="h-5 w-5 text-cyan-400" />
@@ -1019,7 +1019,7 @@ function UnlocatedEventsDrawer({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 bg-slate-900/40 px-6 py-2 gap-2">
+      <div className="flex border-b border-slate-800 bg-slate-900 px-6 py-2 gap-2">
         <button
           type="button"
           onClick={() => setActiveTab("all")}
@@ -1063,7 +1063,7 @@ function UnlocatedEventsDrawer({
           filtered.map((e) => (
             <div
               key={e.id}
-              className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 hover:bg-slate-900 transition-all"
+              className="rounded-2xl border border-slate-800/90 bg-slate-900 p-4 hover:bg-slate-900 transition-all"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="rounded bg-slate-800 border border-slate-700 px-2 py-0.5 text-[9px] font-bold text-cyan-400 uppercase tracking-wider">
@@ -1134,7 +1134,7 @@ function AccessibleListView({
             {points.map((p) => {
               const isBuilding = p.baseline_status === "building_baseline" || p.baseline_ratio == null;
               return (
-                <tr key={p.country} className="hover:bg-slate-900/80 transition-colors">
+                <tr key={p.country} className="hover:bg-slate-900 transition-colors">
                   <td className="py-3 px-3 font-bold text-white">{p.country}</td>
                   <td className="py-3 px-3 font-mono">{p.event_count} {p.source_basis === "news" ? "articles" : "events"}</td>
                   <td className="py-3 px-3">
@@ -1414,7 +1414,7 @@ export default function MacroMapPage() {
                 value={searchQuery}
                 onFocus={() => setIsSearchOpen(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-900/90 py-2.5 pl-10 pr-4 text-xs font-medium text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-900 py-2.5 pl-10 pr-4 text-xs font-medium text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
               />
               {searchQuery && (
                 <button
@@ -1618,7 +1618,7 @@ export default function MacroMapPage() {
           {/* Globe Viewport Box: Sticky on desktop so it never disappears while browsing panels */}
           <div className="lg:sticky lg:top-20 relative overflow-hidden rounded-[30px] border border-slate-800 bg-slate-950 shadow-2xl flex flex-col">
             {/* Viewport Top Bar */}
-            <div className="relative z-20 flex items-center justify-between border-b border-slate-800 bg-slate-950/90 backdrop-blur-md px-5 py-3">
+            <div className="relative z-20 flex items-center justify-between border-b border-slate-800 bg-slate-950 backdrop-blur-md px-5 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-400">
                   GEOPOLITICAL RADAR
@@ -1717,7 +1717,7 @@ export default function MacroMapPage() {
             )}
 
             {/* Bottom Status Ribbon with Legal Credits */}
-            <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/90 backdrop-blur-md px-5 py-2.5 text-[11px] text-slate-500 font-medium">
+            <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950 backdrop-blur-md px-5 py-2.5 text-[11px] text-slate-500 font-medium">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-emerald-400">MapLibre GL</span>
                 <span>·</span>
@@ -1736,7 +1736,7 @@ export default function MacroMapPage() {
           {/* Tactical Intelligence Sidebar: Scrollable on desktop */}
           <div className="space-y-4 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pr-1.5 pb-8">
             {/* Maritime Chokepoints Live Status Watch */}
-            <div className="rounded-[28px] border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur-sm">
+            <div className="rounded-[28px] border border-slate-800 bg-slate-900 p-5 shadow-xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3.5 border-b border-slate-800 pb-2.5">
                 <div className="flex items-center gap-2">
                   <Anchor className="h-4 w-4 text-cyan-400" />
@@ -1756,7 +1756,7 @@ export default function MacroMapPage() {
                       ? "border-rose-500/40 bg-rose-950/30 text-rose-300"
                       : cp.status === "elevated"
                       ? "border-amber-500/40 bg-amber-950/30 text-amber-300"
-                      : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800/80";
+                      : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800/80";
 
                   const badgeBg =
                     cp.status === "disrupted"
@@ -1841,7 +1841,7 @@ export default function MacroMapPage() {
             </div>
 
             {/* High Relative Surge Hotspots */}
-            <div className="rounded-[28px] border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur-sm">
+            <div className="rounded-[28px] border border-slate-800 bg-slate-900 p-5 shadow-xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3.5 border-b border-slate-800 pb-2.5">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-rose-500" />
@@ -1872,7 +1872,7 @@ export default function MacroMapPage() {
                         setSelectedCountry(r.country);
                         updateUrlState({ country: r.country });
                       }}
-                      className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 p-3 text-left transition-all cursor-pointer"
+                      className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800/80 p-3 text-left transition-all cursor-pointer"
                     >
                       <div>
                         <p className="font-bold text-xs text-white">{r.country}</p>
@@ -1893,7 +1893,7 @@ export default function MacroMapPage() {
             </div>
 
             {/* Sovereign Event Volumes */}
-            <div className="rounded-[28px] border border-slate-800 bg-slate-900/80 p-5 shadow-xl backdrop-blur-sm">
+            <div className="rounded-[28px] border border-slate-800 bg-slate-900 p-5 shadow-xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3.5 border-b border-slate-800 pb-2.5">
                 <div className="flex items-center gap-2">
                   <Globe2 className="h-4 w-4 text-emerald-400" />
@@ -1916,7 +1916,7 @@ export default function MacroMapPage() {
                       setSelectedCountry(r.country);
                       updateUrlState({ country: r.country });
                     }}
-                    className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 p-3 text-left transition-all cursor-pointer"
+                    className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800/80 p-3 text-left transition-all cursor-pointer"
                   >
                     <div>
                       <p className="font-bold text-xs text-white">{r.country}</p>
