@@ -816,7 +816,7 @@ def process_unprocessed_articles(self, batch_size: int = 200):
         articles = session.execute(
             select(NewsArticle)
             .where(NewsArticle.is_processed.is_(False))
-            .order_by(NewsArticle.created_at.asc())
+            .order_by(NewsArticle.created_at.desc())
             .limit(batch_size)
         ).scalars().all()
 
