@@ -1,7 +1,8 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, LayoutGrid, Plus, Sparkles } from "lucide-react";
 import { BoardCreatePanel } from "@/components/BoardCreatePanel";
 import { BoardCard } from "@/components/BoardCard";
 import { MasonryGrid } from "@/components/MasonryGrid";
@@ -48,19 +49,17 @@ export default function BoardsPage() {
   });
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="w-5 h-5 text-geo-500" />
-          <h1 className="text-lg font-bold text-gray-900">Intelligence Boards</h1>
-        </div>
-        <button
+    <div className="ga-shell">
+      <section className="ga-hero"><span className="ga-eyebrow"><LayoutGrid size={15} /> YOUR INTELLIGENCE</span><h1>Make sense of<br />what you follow.</h1><p>Collect events and predictions into focused boards. Start with a theme or build your own view.</p></section>
+      <div className="ga-section-head ga-section">
+        <div><span className="ga-eyebrow">GET ORGANIZED</span><h2>Intelligence boards</h2><p>Public boards are open to everyone. Sign in to save your own.</p></div>
+        {isAuthed ? <button
           onClick={() => setShowCreate((value) => !value)}
-          className="flex items-center gap-1.5 rounded-full bg-geo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-geo-600 active:scale-95"
+          className="ga-button ga-button-primary"
         >
           <Plus className="w-4 h-4" />
           {showCreate ? "Close" : "New Board"}
-        </button>
+        </button> : <Link href="/login" className="ga-button ga-button-primary">Sign in to create <ArrowRight size={16} /></Link>}
       </div>
 
       {isAuthed && showCreate ? (
@@ -69,7 +68,7 @@ export default function BoardsPage() {
         </div>
       ) : null}
 
-      <section className="mb-8 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="mb-8 ga-panel p-5">
         <div className="mb-4 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-geo-500" />
           <h2 className="text-sm font-semibold text-gray-900">Example Boards</h2>
@@ -130,15 +129,7 @@ export default function BoardsPage() {
             <BoardCard key={board.id} board={board} />
           ))}
         </MasonryGrid>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-32 text-center">
-          <LayoutGrid className="mb-4 h-14 w-14 text-gray-200" />
-          <h2 className="mb-2 text-xl font-semibold text-gray-500">No boards yet</h2>
-          <p className="max-w-xs text-sm text-gray-400">
-            Create your first intelligence board to start organizing events and predictions.
-          </p>
-        </div>
-      )}
+      ) : <div className="ga-empty"><LayoutGrid className="mx-auto mb-4 text-emerald-600" size={28} /><h2>No public boards yet</h2><p>Browse the examples above for ideas. {isAuthed ? "You can also create the first public board." : "Sign in to publish your own."}</p></div>}
     </div>
   );
 }
@@ -159,7 +150,7 @@ function TemplateCard({
       <h3 className="text-sm font-semibold text-gray-900">{template.title}</h3>
       <p className="mt-2 text-sm text-gray-500">{template.description}</p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button
+        {isAuthed ? <><button
           onClick={() => onCreate("private")}
           disabled={!isAuthed || isPending}
           className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
@@ -172,9 +163,8 @@ function TemplateCard({
           className="rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50"
         >
           Create Public
-        </button>
+        </button></> : <Link href="/login" className="ga-text-link">Sign in to use this template <ArrowRight size={15} /></Link>}
       </div>
-      {!isAuthed ? <p className="mt-3 text-xs text-amber-700">Login required to create from template.</p> : null}
     </div>
   );
 }

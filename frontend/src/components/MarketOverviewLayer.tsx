@@ -172,7 +172,7 @@ export function MarketOverviewLayer() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 max-w-full flex-col gap-6 overflow-hidden">
       {/* Category Tabs & Search Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex flex-wrap gap-1.5">
@@ -275,7 +275,7 @@ export function MarketOverviewLayer() {
             {/* Horizontal Column Scroll Track */}
             <div
               ref={scrollContainerRef}
-              className="flex overflow-x-auto gap-3 py-2 px-1 scrollbar-none snap-x snap-mandatory scroll-smooth"
+              className="flex min-w-0 max-w-full overflow-x-auto gap-3 py-2 px-1 scrollbar-none snap-x snap-mandatory scroll-smooth"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {sortedData.map((item) => {
