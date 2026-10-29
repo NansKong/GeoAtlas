@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, ChevronRight, Compass, Globe2, LayoutGrid, Menu, Newspaper, Search, Sparkles, UserRound, X } from "lucide-react";
 import { fetchMe } from "@/lib/api";
@@ -21,8 +21,22 @@ export function Navbar() {
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const desktopSearchRef = useRef<HTMLInputElement>(null);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe, retry: false, staleTime: 300_000 });
   const isOperator = me?.role === "admin" || me?.role === "reviewer";
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.isContentEditable || (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      event.preventDefault();
+      if (window.matchMedia("(max-width: 900px)").matches) setSearchOpen(true);
+      else desktopSearchRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -51,7 +65,7 @@ export function Navbar() {
 
           <form onSubmit={submitSearch} className={`ga-top-search ${searchOpen ? "is-open" : ""}`} role="search">
             <Search size={17} aria-hidden="true" />
-            <input aria-label="Search GeoAtlas" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events, places, assets..." />
+            <input ref={desktopSearchRef} aria-label="Search GeoAtlas" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events, places, assets..." />
             <kbd>/</kbd>
           </form>
 
