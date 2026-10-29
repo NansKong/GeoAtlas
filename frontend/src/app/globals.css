@@ -210,3 +210,8 @@
 }
 @media (max-width: 520px) { .ga-navbar-actions .ga-icon-button:nth-child(2) { display: none; }.ga-brand span:last-child { font-size: 18px; }.ga-metric-grid { gap: 8px; }.ga-metric { padding: 16px; }.ga-metric strong { font-size: 24px; }.ga-section-head { flex-direction: column; }.ga-hero h1 { font-size: 35px; }.ga-metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.ga-metric-grid .ga-metric:last-child { grid-column: 1 / -1; }.ga-feed-search { gap: 6px; padding-left: 10px; }.ga-search-submit { padding: 0 11px; }.ga-rule-form { grid-template-columns: 1fr; }.ga-alert-actions { width: 100%; }.ga-preferences { padding: 5px 14px; } }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+/* Market detail card */
+.ga-market-panel { box-shadow: 0 18px 45px rgba(15, 43, 41, .08); }
+.ga-market-chart-wrap { background: linear-gradient(145deg, #ffffff 0%, #f4faf7 100%); }
+.ga-market-chart { border: 1px solid #e0eee8; border-radius: 18px; overflow: hidden; background: #f4faf7; }
+.ga-market-chart svg { display: block; }

@@ -130,6 +130,16 @@ celery_app.conf.beat_schedule = {
         "args": ["https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en"],
         "schedule": crontab(minute="6,16,26,36,46,56"),
     },
+    "fetch-google-news-qatar-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://news.google.com/rss/search?q=Qatar+(Iran+OR+attack+OR+security+OR+energy)&hl=en-US&gl=US&ceid=US:en"],
+        "schedule": crontab(minute="7,17,27,37,47,57"),
+    },
+    "fetch-google-news-uae-every-10-min": {
+        "task": "workers.ingestion.fetch_rss",
+        "args": ["https://news.google.com/rss/search?q=(UAE+OR+Dubai+OR+Abu+Dhabi)+(Iran+OR+attack+OR+security+OR+conflict)&hl=en-US&gl=US&ceid=US:en"],
+        "schedule": crontab(minute="7,17,27,37,47,57"),
+    },
 
     # ── APIs & Structured Ingestion (offset: :08, :18, :28, :38, :48, :58) ───
     "fetch-newsapi-every-10-min": {

@@ -265,6 +265,10 @@ COUNTRY_PATTERNS: dict[str, re.Pattern] = {
         r"\b(?:Qatar|Qatari|Doha)\b",
         re.IGNORECASE,
     ),
+    "United Arab Emirates": re.compile(
+        r"\b(?:United Arab Emirates|UAE|Emirati|Dubai|Abu Dhabi|Ras al Khaimah|Sharjah)\b",
+        re.IGNORECASE,
+    ),
 }
 
 
