@@ -1147,6 +1147,7 @@ export default function MacroMapPage() {
   const [projectionMode, setProjectionMode] = useState<"globe" | "mercator">("globe");
   const [colorblindMode, setColorblindMode] = useState(false);
   const [isListView, setIsListView] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -1337,7 +1338,7 @@ export default function MacroMapPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div className="ga-map-page min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
       <div className="mx-auto max-w-[1720px] px-4 py-6 sm:px-6">
         {/* Top Control Header */}
         <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800/80 pb-5">
@@ -1348,14 +1349,14 @@ export default function MacroMapPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black tracking-tight text-white">GeoAtlas Macro Globe</h1>
+                <h1 className="text-xl font-black tracking-tight text-white">Global activity map</h1>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
                   Live Feed
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-slate-400">
-                Non-overlapping baseline surge velocity, anchored maritime corridors, and cross-asset links.
+                See where events are concentrated and how they connect to markets and maritime routes.
               </p>
             </div>
           </div>
@@ -1498,7 +1499,8 @@ export default function MacroMapPage() {
         </header>
 
         {/* Secondary Control Ribbon: Time Window, Layers & Asset Filter */}
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3">
+        <button type="button" className="ga-map-filter-toggle" aria-controls="ga-map-ribbon" aria-expanded={showMobileFilters} onClick={() => setShowMobileFilters((open) => !open)}>{showMobileFilters ? "Hide map filters" : "Filters, layers & time range"}<ChevronRight size={16} /></button>
+        <div id="ga-map-ribbon" className={`ga-map-ribbon ${showMobileFilters ? "is-open" : ""} mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3`}>
           {/* Time Window Pills */}
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Lookback:</span>

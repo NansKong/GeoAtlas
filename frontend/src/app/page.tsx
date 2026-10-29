@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
-import { AlertCircle, Globe, Newspaper, RefreshCw, Search, ShieldAlert, Sparkles, Zap } from "lucide-react";
-
+import { useState } from "react";
+import { ArrowRight, ArrowUpRight, Compass, Globe2, Newspaper, Radar, RefreshCw, Search, Sparkles } from "lucide-react";
 import { CrossAssetCorrelation } from "@/components/CrossAssetCorrelation";
 import { EventPin, type EventPinData } from "@/components/EventPin";
 import { GeoHeatmapWidget } from "@/components/GeoHeatmapWidget";
@@ -16,413 +16,102 @@ import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { fetchEvents, fetchNews, fetchPredictions } from "@/lib/api";
 
 const EVENT_TYPES = [
-  { value: "", label: "All Events" },
-  { value: "conflict", label: "Conflict" },
-  { value: "sanction", label: "Sanctions" },
-  { value: "trade_policy", label: "Trade" },
-  { value: "energy_disruption", label: "Energy" },
-  { value: "election", label: "Elections" },
-  { value: "regulation", label: "Regulation" },
-  { value: "economic_data", label: "Economic" },
-];
-
-const NEWS_CATEGORIES = [
-  { value: "", label: "All News" },
-  { value: "markets", label: "Markets" },
-  { value: "economic_data", label: "Economy" },
-  { value: "trade_policy", label: "Trade" },
-  { value: "regulation", label: "Regulation" },
-  { value: "energy_disruption", label: "Energy" },
-  { value: "conflict", label: "Conflict" },
-  { value: "election", label: "Elections" },
-  { value: "sanction", label: "Sanctions" },
-  { value: "general", label: "General" },
+  { value: "", label: "All events" }, { value: "conflict", label: "Conflict" },
+  { value: "sanction", label: "Sanctions" }, { value: "trade_policy", label: "Trade" },
+  { value: "energy_disruption", label: "Energy" }, { value: "election", label: "Elections" },
+  { value: "regulation", label: "Regulation" }, { value: "economic_data", label: "Economy" },
 ];
 
 export default function HomePage() {
   const [activeType, setActiveType] = useState("");
-  const [activeNewsCategory, setActiveNewsCategory] = useState("");
   const [topicQuery, setTopicQuery] = useState("");
-  const [appliedTopicQuery, setAppliedTopicQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  const [showAllNews, setShowAllNews] = useState(false);
   const [saveTarget, setSaveTarget] = useState<EventPinData | null>(null);
 
-  const {
-    data: events,
-    isLoading: isEventsLoading,
-    isError: isEventsError,
-    error: eventsError,
-    refetch: refetchEvents,
-  } = useQuery({
-    queryKey: ["events", activeType, appliedTopicQuery],
-    queryFn: () =>
-      fetchEvents({
-        event_type: activeType || undefined,
-        q: appliedTopicQuery || undefined,
-        status: "published",
-        limit: 80,
-      }),
+  const events = useQuery({
+    queryKey: ["events", activeType, appliedQuery],
+    queryFn: () => fetchEvents({ event_type: activeType || undefined, q: appliedQuery || undefined, status: "published", limit: 80 }),
   });
-
-  const {
-    data: articles,
-    isLoading: isNewsLoading,
-    isError: isNewsError,
-    error: newsError,
-    refetch: refetchNews,
-  } = useQuery({
-    queryKey: ["news-feed", activeNewsCategory, appliedTopicQuery],
-    queryFn: () =>
-      fetchNews({
-        q: appliedTopicQuery || undefined,
-        category: activeNewsCategory || undefined,
-        limit: 24,
-      }),
+  const news = useQuery({
+    queryKey: ["news-feed", appliedQuery],
+    queryFn: () => fetchNews({ q: appliedQuery || undefined, limit: 24 }),
     staleTime: 60_000,
   });
-
-  const {
-    data: predictions,
-    isLoading: isPredictionsLoading,
-    isError: isPredictionsError,
-    error: predictionsError,
-    refetch: refetchPredictions,
-  } = useQuery({
+  const predictions = useQuery({
     queryKey: ["prediction-feed-preview"],
     queryFn: () => fetchPredictions({ published_only: true, limit: 4 }),
     staleTime: 30_000,
   });
 
-  const eventCount = events?.length ?? 0;
-  const articleCount = articles?.length ?? 0;
+  const eventItems = Array.isArray(events.data) ? events.data : [];
+  const newsItems = Array.isArray(news.data) ? news.data : [];
+  const predictionItems = Array.isArray(predictions.data) ? predictions.data : [];
 
-  return (
-    <div className="mx-auto max-w-screen-2xl px-4 py-6">
-      <SaveToBoardDialog
-        open={saveTarget !== null}
-        contentId={saveTarget?.id ?? ""}
-        contentType="event"
-        suggestedNote={saveTarget ? `${saveTarget.event_type.replace(/_/g, " ")} - ${saveTarget.title}` : ""}
-        onClose={() => setSaveTarget(null)}
-      />
+  return <div className="ga-shell">
+    <SaveToBoardDialog open={saveTarget !== null} contentId={saveTarget?.id ?? ""} contentType="event" suggestedNote={saveTarget ? `${saveTarget.event_type.replace(/_/g, " ")} - ${saveTarget.title}` : ""} onClose={() => setSaveTarget(null)} />
 
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-geo-500" />
-          <h1 className="text-lg font-bold text-gray-900">Global Intelligence Feed</h1>
-        </div>
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">
-          Live updates every 10 min
-        </span>
+    <section className="ga-hero">
+      <span className="ga-eyebrow"><Radar size={15} /> THE GLOBAL SIGNAL DESK</span>
+      <h1>Know what moves<br />the world.</h1>
+      <p>Follow geopolitical developments, see where risk is building, and connect the story to markets in one clear view.</p>
+      <div className="ga-hero-actions">
+        <Link href="/map" className="ga-button ga-button-primary">Explore the live map <ArrowUpRight size={17} /></Link>
+        <Link href="/news" className="ga-button ga-button-secondary">Browse latest news <ArrowRight size={17} /></Link>
       </div>
+    </section>
 
-      <div className="mb-5 flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            value={topicQuery}
-            onChange={(e) => setTopicQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") setAppliedTopicQuery(topicQuery.trim());
-            }}
-            placeholder="Search any topic, country, source, ticker, company, sector..."
-            className="h-10 w-full rounded-full border border-gray-300 bg-white pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-geo-300"
-          />
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setAppliedTopicQuery(topicQuery.trim())}
-            className="h-10 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-          >
-            Apply
-          </button>
-          <button
-            onClick={() => {
-              setTopicQuery("");
-              setAppliedTopicQuery("");
-              setActiveType("");
-              setActiveNewsCategory("");
-            }}
-            className="h-10 rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-6 grid gap-3 md:grid-cols-2">
-        <FeedStatCard
-          icon={<Sparkles className="h-4 w-4 text-geo-700" />}
-          title="Structured intelligence"
-          value={`${eventCount} visible events`}
-          detail={
-            appliedTopicQuery
-              ? `Filtered by "${appliedTopicQuery}"`
-              : activeType
-              ? `Filtered by ${EVENT_TYPES.find((t) => t.value === activeType)?.label ?? activeType}`
-              : "Auto-approved and human-approved events only"
-          }
-          isLoading={isEventsLoading}
-        />
-        <FeedStatCard
-          icon={<Newspaper className="h-4 w-4 text-geo-700" />}
-          title="Raw news stream"
-          value={`${articleCount} categorized articles`}
-          detail={
-            appliedTopicQuery
-              ? `Filtered by "${appliedTopicQuery}"`
-              : activeNewsCategory
-              ? `Filtered by ${NEWS_CATEGORIES.find((c) => c.value === activeNewsCategory)?.label ?? activeNewsCategory}`
-              : "Articles stay visible even before event extraction"
-          }
-          isLoading={isNewsLoading}
-        />
-      </div>
-
-
-      <MarketOverviewLayer />
-      <WatchlistPanel />
-
-      <GeoHeatmapWidget />
-      <CrossAssetCorrelation />
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center gap-2">
-          <Zap className="h-5 w-5 text-geo-600" />
-          <h2 className="text-base font-bold text-gray-900">Prediction Surface</h2>
-          <span className="rounded-full bg-geo-50 px-2 py-0.5 text-xs font-medium text-geo-700">
-            Accuracy-gated
-          </span>
-        </div>
-        <p className="mb-4 max-w-3xl text-sm text-gray-500">
-          Predictions are only surfaced when the event type clears the current back-test threshold. Everything else stays in the history view.
-        </p>
-        {isPredictionsLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-72 animate-pulse rounded-[26px] border border-gray-200 bg-gray-100" />
-            ))}
-          </div>
-        ) : isPredictionsError ? (
-          <div className="rounded-[24px] border border-amber-200 bg-amber-50/70 p-6 text-center">
-            <ShieldAlert className="mx-auto mb-2 h-8 w-8 text-amber-600" />
-            <h3 className="text-sm font-bold text-gray-900">
-              {(predictionsError as any)?.response?.status === 403
-                ? "Daily Free Prediction Limit Reached"
-                : "Unable to Load Prediction Surface"}
-            </h3>
-            <p className="mt-1 text-xs text-gray-600">
-              {(predictionsError as any)?.response?.data?.detail ??
-                "Encountered an issue loading live predictions. Check back shortly or retry."}
-            </p>
-            <button
-              onClick={() => refetchPredictions()}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw className="h-3 w-3" /> Retry
-            </button>
-          </div>
-        ) : Array.isArray(predictions) && predictions.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {predictions.map((prediction) => (
-              <PredictionCard key={prediction.id} prediction={prediction} />
-            ))}
-          </div>
-        ) : (
-          <SectionEmptyState
-            icon={<Zap className="mb-4 h-12 w-12 text-gray-200" />}
-            title="No live-eligible predictions yet"
-            detail="Resolved accuracy needs to clear the production rule before predictions appear on the public surface."
-          />
-        )}
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center gap-2">
-          <Newspaper className="h-5 w-5 text-geo-600" />
-          <h2 className="text-base font-bold text-gray-900">Live News Feed</h2>
-          <span className="rounded-full bg-geo-50 px-2 py-0.5 text-xs font-medium text-geo-700">
-            Categorized from raw articles
-          </span>
-        </div>
-        <p className="mb-4 max-w-3xl text-sm text-gray-500">
-          This section shows the raw feed directly, grouped by inferred category, so the homepage stays populated even
-          when an article has not been promoted into a structured event yet.
-        </p>
-        <div className="mb-5 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {NEWS_CATEGORIES.map((category) => (
-            <button
-              key={category.value}
-              onClick={() => setActiveNewsCategory(category.value)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                activeNewsCategory === category.value
-                  ? "bg-gray-900 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
-            >
-              {category.label}
-            </button>
-          ))}
-        </div>
-
-        {isNewsLoading ? (
-          <ArticleSkeletonGrid />
-        ) : isNewsError ? (
-          <div className="rounded-[24px] border border-red-200 bg-red-50/70 p-6 text-center">
-            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
-            <h3 className="text-sm font-bold text-gray-900">Unable to Load News Stream</h3>
-            <p className="mt-1 text-xs text-gray-600">
-              {(newsError as any)?.response?.data?.detail ?? "Check your network connection or try refreshing."}
-            </p>
-            <button
-              onClick={() => refetchNews()}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw className="h-3 w-3" /> Retry
-            </button>
-          </div>
-        ) : Array.isArray(articles) && articles.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {articles.map((article) => (
-              <NewsFeedCard key={article.id} article={article} />
-            ))}
-          </div>
-        ) : (
-          <SectionEmptyState
-            icon={<Newspaper className="mb-4 h-12 w-12 text-gray-200" />}
-            title="No articles match this topic"
-            detail="Try a broader search term or switch the news category."
-          />
-        )}
-      </section>
-
-      <section className="mt-10">
-        <div className="mb-3 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-geo-600" />
-          <h2 className="text-base font-bold text-gray-900">Structured Event Intelligence</h2>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">Published events only</span>
-        </div>
-        <p className="mb-4 max-w-3xl text-sm text-gray-500">
-          These cards are the subset of news that passed extraction and confidence checks, with affected assets and
-          event type attached.
-        </p>
-        <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {EVENT_TYPES.map((type) => (
-            <button
-              key={type.value}
-              onClick={() => setActiveType(type.value)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                activeType === type.value ? "bg-gray-900 text-white" : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
-            >
-              {type.label}
-            </button>
-          ))}
-        </div>
-
-        {isEventsLoading ? (
-          <EventSkeletonGrid />
-        ) : isEventsError ? (
-          <div className="rounded-[24px] border border-red-200 bg-red-50/70 p-6 text-center">
-            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
-            <h3 className="text-sm font-bold text-gray-900">Unable to Load Event Intelligence</h3>
-            <p className="mt-1 text-xs text-gray-600">
-              {(eventsError as any)?.response?.data?.detail ?? "Check your network connection or try refreshing."}
-            </p>
-            <button
-              onClick={() => refetchEvents()}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw className="h-3 w-3" /> Retry
-            </button>
-          </div>
-        ) : Array.isArray(events) && events.length > 0 ? (
-          <MasonryGrid>
-            {events.map((event) => (
-              <EventPin key={event.id} event={event} onSave={setSaveTarget} />
-            ))}
-          </MasonryGrid>
-        ) : (
-          <SectionEmptyState
-            icon={<Globe className="mb-4 h-12 w-12 text-gray-200" />}
-            title="No structured events match this filter"
-            detail="The raw news section above may still have articles for this topic."
-          />
-        )}
-      </section>
+    <div className="ga-metric-grid ga-stagger" aria-label="Current feed summary">
+      <div className="ga-metric"><span>Published intelligence</span><strong>{events.isLoading || events.isError ? "—" : eventItems.length}</strong><p>{events.isError ? "Feed temporarily unavailable" : "Events shown in this view"}</p></div>
+      <div className="ga-metric"><span>Source articles</span><strong>{news.isLoading || news.isError ? "—" : newsItems.length}</strong><p>{news.isError ? "Feed temporarily unavailable" : "Articles in the current feed"}</p></div>
+      <div className="ga-metric"><span>Public predictions</span><strong>{predictions.isLoading || predictions.isError ? "—" : predictionItems.length}</strong><p>{predictions.isError ? "Feed temporarily unavailable" : predictionItems.length ? "Signals currently available" : "Waiting for verified signals"}</p></div>
     </div>
-  );
+
+    <section className="ga-section" aria-labelledby="market-heading">
+      <div className="ga-section-head"><div><span className="ga-eyebrow">01 / MARKET PULSE</span><h2 id="market-heading">The market, in context</h2><p>Explore live asset prices and the events connected to them.</p></div></div>
+      <div className="ga-market-wrap"><MarketOverviewLayer /></div>
+    </section>
+
+    <section className="ga-section ga-overview-grid" aria-label="Saved assets and geographic activity">
+      <div className="ga-overview-cell"><WatchlistPanel /></div>
+      <div className="ga-overview-cell"><GeoHeatmapWidget /></div>
+    </section>
+
+    <section className="ga-section" aria-labelledby="events-heading">
+      <div className="ga-section-head"><div><span className="ga-eyebrow">02 / STRUCTURED EVENTS</span><h2 id="events-heading">The stories behind the signals</h2><p>Published events with location, severity, and linked assets.</p></div><Link href="/map" className="ga-text-link">Explore the map <ArrowUpRight size={16} /></Link></div>
+      <form className="ga-feed-search" onSubmit={(event) => { event.preventDefault(); setAppliedQuery(topicQuery.trim()); }} role="search">
+        <Search size={19} aria-hidden="true" />
+        <input aria-label="Search events and news" value={topicQuery} onChange={(event) => setTopicQuery(event.target.value)} placeholder="Search a country, company, topic or ticker" />
+        {appliedQuery && <button type="button" className="ga-search-clear" onClick={() => { setTopicQuery(""); setAppliedQuery(""); }}>Clear</button>}
+        <button type="submit" className="ga-search-submit">Search</button>
+      </form>
+      <div className="ga-chip-row ga-filter-row" role="group" aria-label="Event type">
+        {EVENT_TYPES.map((type) => <button key={type.value} type="button" className={`ga-chip ${activeType === type.value ? "is-active" : ""}`} aria-pressed={activeType === type.value} onClick={() => { setActiveType(type.value); setShowAllEvents(false); }}>{type.label}</button>)}
+      </div>
+      {events.isLoading ? <div className="ga-loading-grid">{[0,1,2].map((item) => <div key={item} className="skeleton ga-panel" />)}</div>
+      : events.isError ? <RetryCard title="Events are unavailable" detail="We couldn’t load this feed right now." onRetry={() => events.refetch()} />
+      : eventItems.length ? <><MasonryGrid>{(showAllEvents ? eventItems : eventItems.slice(0, 9)).map((event) => <EventPin key={event.id} event={event} onSave={setSaveTarget} />)}</MasonryGrid>{eventItems.length > 9 && <button className="ga-show-more" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? "Show fewer events" : `Show all ${eventItems.length} events`} <ArrowRight size={16} /></button>}</>
+      : <div className="ga-empty"><Globe2 size={25} /><h3>No events match this view</h3><p>Try another topic or event type. Raw articles may still be available below.</p></div>}
+    </section>
+
+    <section className="ga-section" aria-labelledby="news-heading">
+      <div className="ga-section-head"><div><span className="ga-eyebrow">03 / SOURCE DESK</span><h2 id="news-heading">From the newsroom</h2><p>Original reporting, with source and publish time visible on every story.</p></div><Link href="/news" className="ga-text-link">All news <ArrowUpRight size={16} /></Link></div>
+      {news.isLoading ? <div className="ga-loading-grid">{[0,1,2].map((item) => <div key={item} className="skeleton ga-panel" />)}</div>
+      : news.isError ? <RetryCard title="News is unavailable" detail="We couldn’t load the latest articles." onRetry={() => news.refetch()} />
+      : newsItems.length ? <><div className="ga-news-grid">{(showAllNews ? newsItems : newsItems.slice(0, 6)).map((article) => <NewsFeedCard key={article.id} article={article} />)}</div>{newsItems.length > 6 && <button className="ga-show-more" onClick={() => setShowAllNews((value) => !value)}>{showAllNews ? "Show fewer stories" : "More stories"} <ArrowRight size={16} /></button>}</>
+      : <div className="ga-empty"><Newspaper size={25} /><h3>No articles found</h3><p>Try a broader search or browse the complete news feed.</p></div>}
+    </section>
+
+    <section className="ga-section" aria-labelledby="predictions-heading">
+      <div className="ga-section-head"><div><span className="ga-eyebrow">04 / MODEL SIGNALS</span><h2 id="predictions-heading">Predictions, with context</h2><p>Only predictions that meet the public accuracy threshold appear here.</p></div><Link href="/predictions" className="ga-text-link">Prediction desk <ArrowUpRight size={16} /></Link></div>
+      {predictions.isLoading ? <div className="skeleton ga-panel" style={{height:180}} /> : predictions.isError ? <RetryCard title="Predictions are unavailable" detail="Please try again shortly." onRetry={() => predictions.refetch()} /> : predictionItems.length ? <div className="ga-news-grid">{predictionItems.map((prediction) => <PredictionCard key={prediction.id} prediction={prediction} />)}</div> : <div className="ga-empty"><Sparkles size={26} /><h3>No verified predictions right now</h3><p>Explore the current events and market data while the model gathers enough outcomes to publish a signal.</p><Link href="/map" className="ga-text-link">Explore the map <ArrowRight size={16} /></Link></div>}
+    </section>
+
+    <section className="ga-section"><div className="ga-section-head"><div><span className="ga-eyebrow">05 / CROSS-ASSET VIEW</span><h2>Connections across markets</h2></div></div><CrossAssetCorrelation /></section>
+  </div>;
 }
 
-function FeedStatCard({
-  icon,
-  title,
-  value,
-  detail,
-  isLoading = false,
-}: {
-  icon: ReactNode;
-  title: string;
-  value: string;
-  detail: string;
-  isLoading?: boolean;
-}) {
-  return (
-    <div className="rounded-[28px] border border-gray-200 bg-white px-5 py-4 shadow-sm transition-all hover:border-gray-300 hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div className="mb-2 inline-flex rounded-full bg-geo-50 p-2">{icon}</div>
-        <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-          Live
-        </span>
-      </div>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
-      {isLoading ? (
-        <div className="mt-2 h-7 w-32 animate-pulse rounded-lg bg-gray-200" />
-      ) : (
-        <p className="mt-1 text-xl font-bold text-gray-900">{value}</p>
-      )}
-      <p className="mt-1 text-xs text-gray-500">{detail}</p>
-    </div>
-  );
-}
-
-
-function ArticleSkeletonGrid() {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-44 animate-pulse rounded-[28px] border border-gray-200 bg-gray-100" />
-      ))}
-    </div>
-  );
-}
-
-function EventSkeletonGrid() {
-  return (
-    <MasonryGrid>
-      {Array.from({ length: 18 }).map((_, i) => (
-        <div key={i} className="skeleton mb-4 rounded-[var(--pin-radius)]" style={{ height: `${140 + (i % 4) * 40}px` }} />
-      ))}
-    </MasonryGrid>
-  );
-}
-
-function SectionEmptyState({
-  icon,
-  title,
-  detail,
-}: {
-  icon: ReactNode;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
-      {icon}
-      <h3 className="text-lg font-semibold text-gray-500">{title}</h3>
-      <p className="mt-2 max-w-md text-sm text-gray-400">{detail}</p>
-    </div>
-  );
+function RetryCard({ title, detail, onRetry }: { title: string; detail: string; onRetry: () => void }) {
+  return <div className="ga-empty"><Compass size={25} /><h3>{title}</h3><p>{detail}</p><button onClick={onRetry} className="ga-button ga-button-primary mt-5"><RefreshCw size={15} /> Try again</button></div>;
 }

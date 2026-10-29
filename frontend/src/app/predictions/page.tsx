@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -11,9 +12,11 @@ import {
   History,
   RefreshCw,
   ShieldAlert,
+  Sparkles,
   Target,
   TrendingUp,
   XCircle,
+  ArrowRight,
 } from "lucide-react";
 
 import { PredictionCard } from "@/components/PredictionCard";
@@ -187,25 +190,21 @@ export default function PredictionsPage() {
   }, [predictions]);
 
   return (
-    <div className="mx-auto max-w-screen-2xl px-4 py-6">
+    <div className="ga-shell">
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <BrainCircuit className="h-5 w-5 text-geo-600" />
-            <h1 className="text-xl font-bold text-gray-900">Prediction Engine</h1>
-          </div>
-          <p className="mt-2 max-w-3xl text-sm text-gray-500">
-            Full closed-loop prediction lifecycle with transparent model accuracy and resolved outcome tracking.
-          </p>
-        </div>
+      <div className="ga-hero mb-6">
+        <span className="ga-eyebrow"><BrainCircuit size={15} /> MODEL SIGNALS</span>
+        <h1>See the outlook.<br />Know the confidence.</h1>
+        <p>Explore published market predictions and see how earlier signals performed once outcomes are known.</p>
+      </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-full border border-gray-200 bg-white p-1">
             <button
               onClick={() => setMode("live")}
               className={`rounded-full px-4 py-2 text-sm font-semibold ${mode === "live" ? "bg-gray-900 text-white" : "text-gray-600"}`}
             >
-              Live Surface
+              Current signals
             </button>
             <button
               onClick={() => setMode("history")}
@@ -216,6 +215,7 @@ export default function PredictionsPage() {
           </div>
           <button
             onClick={() => setShowFilters((v) => !v)}
+            disabled={!Array.isArray(predictions) || predictions.length === 0}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-semibold transition-colors ${showFilters ? "border-geo-300 bg-geo-50 text-geo-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
           >
             <Filter className="h-4 w-4" />
@@ -225,7 +225,7 @@ export default function PredictionsPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="mb-6 grid gap-3 md:grid-cols-5">
+      {(summary?.total_predictions ?? 0) > 0 && <div className="mb-6 grid gap-3 md:grid-cols-5">
         <StatCard icon={<BarChart3 className="h-4 w-4 text-geo-700" />} label="Total" value={`${summary?.total_predictions ?? 0}`} />
         <StatCard icon={<History className="h-4 w-4 text-geo-700" />} label="Resolved" value={`${summary?.resolved_predictions ?? 0}`} />
         <StatCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} label="Correct" value={`${outcomeStats.correct}`} accent="emerald" />
@@ -236,7 +236,7 @@ export default function PredictionsPage() {
           value={summary?.overall_accuracy !== undefined && summary?.overall_accuracy !== null ? `${(summary.overall_accuracy * 100).toFixed(1)}%` : "-"}
           hint={summary?.feature_enabled === false ? "Auto-disabled < 50%" : "Shipping threshold 60%"}
         />
-      </div>
+      </div>}
 
       {/* Filters */}
       {showFilters && (
@@ -279,7 +279,7 @@ export default function PredictionsPage() {
       )}
 
       {/* Accuracy Dashboard */}
-      {mode === "history" && accuracy && (
+      {mode === "history" && accuracy && accuracy.total_resolved > 0 && (
         <section className="mb-8">
           <div className="mb-4 flex items-center gap-2">
             <Target className="h-5 w-5 text-geo-600" />
@@ -323,15 +323,17 @@ export default function PredictionsPage() {
           ))}
         </div>
       ) : (
-        <div className="rounded-[28px] border border-dashed border-gray-200 bg-white px-6 py-16 text-center">
-          <p className="text-lg font-semibold text-gray-700">
+        <div className="ga-empty">
+          <Sparkles className="mx-auto mb-4 h-8 w-8 text-emerald-600" />
+          <h2 className="text-lg font-semibold text-gray-700">
             {outcomeFilter || eventTypeFilter ? "No predictions match this filter" : "No predictions available"}
-          </p>
+          </h2>
           <p className="mt-2 text-sm text-gray-500">
             {outcomeFilter || eventTypeFilter
               ? "Try adjusting your outcome or event type filters."
-              : "Create predictions through the backend API, then this surface will show live-eligible predictions and resolved history."}
+              : "The model is gathering verified outcomes before publishing signals here. You can still explore today’s events and market activity."}
           </p>
+          {!outcomeFilter && !eventTypeFilter && <Link href="/map" className="ga-button ga-button-primary mt-5">Explore the live map <ArrowRight size={16} /></Link>}
         </div>
       )}
     </div>

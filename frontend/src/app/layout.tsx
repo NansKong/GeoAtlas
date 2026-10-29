@@ -29,7 +29,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <Navbar />
-          <main className="pt-[60px] min-h-screen">{children}</main>
+          <main className="pt-[72px] min-h-screen max-[850px]:pt-[64px] max-[850px]:pb-[65px]">{children}</main>
         </Providers>
       </body>
     </html>
