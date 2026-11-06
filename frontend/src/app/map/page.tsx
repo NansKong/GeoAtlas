@@ -1659,7 +1659,6 @@ export default function MacroMapPage() {
                   <>
                     <MapComponent
                       ref={mapRef}
-                      theme="dark"
                       center={[15, 20]}
                       zoom={1.55}
                       minZoom={0.8}

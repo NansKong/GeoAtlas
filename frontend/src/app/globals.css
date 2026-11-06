@@ -270,3 +270,33 @@ html.dark .ga-news-card h3 { color: #e8f3ef !important; }
 html.dark .ga-news-card p, html.dark .ga-news-card .text-gray-500 { color: #a6bcb6 !important; }
 html.dark .ga-correlation-card { background: #1d343a !important; border-color: #3b5558 !important; }
 html.dark .ga-correlation-card .text-gray-600 { color: #c3d9d2 !important; }
+
+/* Light surfaces follow the same theme as the shared header. */
+html:not(.dark) .ga-hero { background: #e8f5ee; color: #133c34; border: 1px solid #cfe5da; }
+html:not(.dark) .ga-hero::after { background-image: linear-gradient(#5a9e87 1px,transparent 1px),linear-gradient(90deg,#5a9e87 1px,transparent 1px); }
+html:not(.dark) .ga-hero p { color: #42665a; }
+html:not(.dark) .ga-hero .ga-eyebrow { color: #24745d; }
+html:not(.dark) .ga-hero .ga-button-primary { background: #176e58; color: #fff; }
+html:not(.dark) .ga-hero .ga-button-secondary { background: #fff; color: #205a49; border-color: #b8d4c6; }
+html:not(.dark) .ga-bottom-nav { background: #fff; border-top: 1px solid #dce7e2; box-shadow: 0 -4px 20px rgba(20,60,45,.05); }
+html:not(.dark) .ga-bottom-nav a, html:not(.dark) .ga-bottom-nav button { color: #627d72; }
+html:not(.dark) .ga-bottom-nav .is-active { color: #14765a; }
+html:not(.dark) .ga-map-page { color: #1c3931; }
+html:not(.dark) .ga-map-page :is(.bg-slate-950,.bg-slate-900) { background-color: #fff !important; }
+html:not(.dark) .ga-map-page :is(.bg-slate-800,.bg-slate-700,[class~="bg-slate-800/80"]) { background-color: #e8f1ec !important; }
+html:not(.dark) .ga-map-page :is(.border-slate-800,.border-slate-700,.border-slate-600) { border-color: #d0e0d6 !important; }
+html:not(.dark) .ga-map-page :is(.text-white,.text-slate-100,.text-slate-200,.text-slate-300) { color: #234539 !important; }
+html:not(.dark) .ga-map-page :is(.text-slate-400,.text-slate-500,.text-slate-600) { color: #5c756b !important; }
+html:not(.dark) .ga-map-page :is(.text-emerald-300,.text-emerald-400) { color: #087450 !important; }
+html:not(.dark) .ga-map-page :is(.text-cyan-300,.text-cyan-400) { color: #08738a !important; }
+html:not(.dark) .ga-map-page :is(.text-rose-300,.text-rose-400) { color: #b62249 !important; }
+html:not(.dark) .ga-map-page :is(.text-amber-300,.text-amber-400) { color: #8f5a05 !important; }
+html:not(.dark) .ga-map-page :is([class~="bg-rose-950/30"],[class~="bg-rose-950/40"]) { background-color: #fff0f3 !important; }
+html:not(.dark) .ga-map-page [class~="bg-amber-950/30"] { background-color: #fff7e6 !important; }
+html:not(.dark) .ga-map-page :is([class~="bg-cyan-950/30"],[class~="bg-emerald-950/30"]) { background-color: #eaf7f1 !important; }
+html:not(.dark) .ga-map-filter-toggle, html:not(.dark) .ga-map-ribbon { background: #fff; color: #234539; border-color: #d0e0d6; box-shadow: 0 4px 16px rgba(20,60,45,.04); }
+html:not(.dark) .ga-map-ribbon-label { color: #4d6d5e; }
+html:not(.dark) .ga-map-page .shadow-2xl, html:not(.dark) .ga-map-page .shadow-xl { box-shadow: 0 8px 24px rgba(20,60,45,.07); }
+html:not(.dark) .ga-map-page [class~="bg-[#08161d]"] { background-color: #fff !important; border-color: #c7ded1 !important; }
+html:not(.dark) .ga-map-page :is([class~="text-[#e6fff8]"],[class~="text-[#86ffdc]"]) { color: #176c51 !important; }
+html:not(.dark) .ga-map-page [class~="text-[#6f988b]"] { color: #537468 !important; }
