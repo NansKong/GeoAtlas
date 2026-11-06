@@ -421,7 +421,7 @@ function HotspotDot({
     ? "#f59e0b"
     : "#10b981";
 
-  const size = Math.max(12, Math.min(26, point.event_count * 1.4));
+  const size = 28;
 
   return (
     <MapMarker longitude={point.longitude} latitude={point.latitude}>
@@ -430,8 +430,8 @@ function HotspotDot({
           type="button"
           onClick={() => onClick(point)}
           className="relative flex items-center justify-center focus:outline-none transition-transform hover:scale-125 cursor-pointer"
-          style={{ width: size * 2.2, height: size * 2.2 }}
-          aria-label={`Hotspot in ${point.country}`}
+          style={{ width: 44, height: 44 }}
+          aria-label={`${point.country}: ${point.event_count} ${point.source_basis === "news" ? "source articles" : "events"}`}
         >
           {isSurge && (
             <div
@@ -447,16 +447,14 @@ function HotspotDot({
             className="relative flex items-center justify-center rounded-full border border-white/70 shadow-lg"
             style={{
               backgroundColor: color,
-              width: Math.max(8, size * 0.55),
-              height: Math.max(8, size * 0.55),
+              width: size,
+              height: size,
               boxShadow: `0 0 12px ${color}aa`,
             }}
           >
-            {point.event_count >= 8 && (
-              <span className="text-[8px] font-black text-white leading-none">
+              <span className="text-[10px] font-black leading-none tabular-nums" style={{ color: "#092c28" }}>
                 {point.event_count}
               </span>
-            )}
           </div>
         </button>
       </MarkerContent>
