@@ -268,3 +268,5 @@ html:not(.dark) .ga-top-search kbd { border-color: #ccdcd4; }
 html.dark .ga-news-card { background: #15252b !important; border-color: #34484b !important; color: #e8f3ef; }
 html.dark .ga-news-card h3 { color: #e8f3ef !important; }
 html.dark .ga-news-card p, html.dark .ga-news-card .text-gray-500 { color: #a6bcb6 !important; }
+html.dark .ga-correlation-card { background: #1d343a !important; border-color: #3b5558 !important; }
+html.dark .ga-correlation-card .text-gray-600 { color: #c3d9d2 !important; }

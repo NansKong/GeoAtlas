@@ -205,7 +205,7 @@ export function CrossAssetCorrelation() {
             {correlations.map((c) => {
               const classes = c.pair.split("↔");
               return (
-                <div key={c.pair} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                <div key={c.pair} className="ga-correlation-card rounded-xl border border-gray-100 bg-gray-50/60 p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {classes.map((clsName) => {
