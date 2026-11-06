@@ -86,7 +86,7 @@ export function Navbar() {
             <button type="button" className="ga-icon-button ga-theme-toggle" aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} title={theme === "dark" ? "Light theme" : "Dark theme"} aria-pressed={theme === "dark"} onClick={toggleTheme}>{theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}</button>
             <button type="button" className="ga-icon-button ga-mobile-search-toggle" aria-label="Search" aria-expanded={searchOpen} onClick={() => setSearchOpen((open) => !open)}><Search size={20} /></button>
             <Link href="/alerts" className="ga-icon-button" aria-label="Alerts"><Bell size={19} /></Link>
-            <Link href="/login" className="ga-icon-button" aria-label={me ? "Account" : "Sign in"}><UserRound size={19} /></Link>
+            <Link href={me ? "/account" : "/login"} className="ga-icon-button" aria-label={me ? "Account" : "Sign in"}><UserRound size={19} /></Link>
             <button type="button" className="ga-icon-button ga-menu-toggle" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="ga-mobile-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
           </div>
         </div>

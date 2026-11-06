@@ -33,7 +33,7 @@ export function NewsFeedCard({ article }: NewsFeedCardProps) {
     : null;
 
   return (
-    <Card className="border-gray-200 bg-white/95 shadow-sm">
+    <Card className="ga-news-card border-gray-200 bg-white/95 shadow-sm">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">

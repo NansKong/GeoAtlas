@@ -519,7 +519,7 @@ export function MarketPanel({ customTicker }: { customTicker?: string }) {
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                 <span>Low <strong className="ml-1 text-slate-800">{chartLow?.toFixed(2) ?? "—"}</strong></span>
                 <span>High <strong className="ml-1 text-slate-800">{chartHigh?.toFixed(2) ?? "—"}</strong></span>
-                <span>30 trading days · {ohlcvQuery.data.source}</span>
+                <span>30 trading days</span>
               </div>
             </>
           )}

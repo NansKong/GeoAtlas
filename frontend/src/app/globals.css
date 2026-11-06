@@ -255,3 +255,16 @@ html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]), html.dark .divide-
 html.dark input, html.dark select, html.dark textarea { color-scheme: dark; }
 html.dark .bg-emerald-500.text-slate-950, html.dark .bg-amber-400.text-slate-950 { color: #08201c !important; }
 html.dark .ga-map-ribbon .bg-slate-100 { background-color: #e8f3ef !important; color: #0d2528 !important; }
+html:not(.dark) .navbar { background: rgba(255,255,255,.96); color: #18332f; border-bottom: 1px solid #dce7e2; }
+html:not(.dark) .ga-brand { color: #102e2a; }
+html:not(.dark) .ga-brand-accent { color: #16866f; }
+html:not(.dark) .ga-nav-link { color: #46625b; }
+html:not(.dark) .ga-nav-link:hover, html:not(.dark) .ga-nav-link.is-active { background: #e7f5ef; color: #145d4f; }
+html:not(.dark) .ga-icon-button { color: #3d6258; }
+html:not(.dark) .ga-icon-button:hover { background: #e7f5ef; color: #145d4f; }
+html:not(.dark) .ga-top-search { background: #f4f8f6; color: #54756b; border-color: #dce7e2; }
+html:not(.dark) .ga-top-search input { color: #18332f; }
+html:not(.dark) .ga-top-search kbd { border-color: #ccdcd4; }
+html.dark .ga-news-card { background: #15252b !important; border-color: #34484b !important; color: #e8f3ef; }
+html.dark .ga-news-card h3 { color: #e8f3ef !important; }
+html.dark .ga-news-card p, html.dark .ga-news-card .text-gray-500 { color: #a6bcb6 !important; }

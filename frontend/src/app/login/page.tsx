@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Globe,
@@ -26,6 +27,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -79,7 +81,8 @@ export default function LoginPage() {
         }
       }
 
-      router.push("/");
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      router.replace("/account");
       router.refresh();
     } catch (err: any) {
       const msg = formatFirebaseAuthError(err) || err.response?.data?.detail || err.message || "Authentication failed";
@@ -103,7 +106,8 @@ export default function LoginPage() {
       const idToken = await signInWithFirebaseGoogle();
       setSuccessMsg("Signed in with Google! Preparing your intelligence feed...");
       await loginWithFirebase(idToken);
-      router.push("/");
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      router.replace("/account");
       router.refresh();
     } catch (err: any) {
       if (err?.code !== "auth/popup-closed-by-user") {
