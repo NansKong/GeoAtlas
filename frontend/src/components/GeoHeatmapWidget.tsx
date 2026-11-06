@@ -219,7 +219,7 @@ export function GeoHeatmapWidget() {
   }, [hotspots]);
 
   return (
-    <section className="mt-6">
+    <section className="ga-heatmap-widget mt-6">
       <div className="mb-3 flex items-center gap-2">
         <Globe2 className="h-5 w-5 text-geo-600" />
         <h2 className="text-base font-bold text-gray-900">
@@ -239,7 +239,6 @@ export function GeoHeatmapWidget() {
             </div>
           ) : (
             <MapComponent
-              theme="dark"
               center={[20, 18]}
               zoom={1.2}
               scrollZoom={false}

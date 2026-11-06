@@ -300,3 +300,11 @@ html:not(.dark) .ga-map-page .shadow-2xl, html:not(.dark) .ga-map-page .shadow-x
 html:not(.dark) .ga-map-page [class~="bg-[#08161d]"] { background-color: #fff !important; border-color: #c7ded1 !important; }
 html:not(.dark) .ga-map-page :is([class~="text-[#e6fff8]"],[class~="text-[#86ffdc]"]) { color: #176c51 !important; }
 html:not(.dark) .ga-map-page [class~="text-[#6f988b]"] { color: #537468 !important; }
+html:not(.dark) .ga-heatmap-widget :is([class~="bg-[#061014]"],[class~="bg-[#08161d]"],[class~="bg-[#06101a]/90"]) { background-color: #fff !important; }
+html:not(.dark) .ga-heatmap-widget :is([class~="border-[#0f2e25]"],[class~="border-[#17372f]"]) { border-color: #d0e0d6 !important; }
+html:not(.dark) .ga-heatmap-widget :is([class~="text-[#86ffdc]"],[class~="text-[#e6fff8]"]) { color: #176c51 !important; }
+html:not(.dark) .ga-heatmap-widget [class~="text-[#6f988b]"] { color: #537468 !important; }
+html:not(.dark) .ga-heatmap-widget [class~="text-[#ffd782]"] { color: #84600d !important; }
+html:not(.dark) .ga-heatmap-widget [class~="bg-rose-900/60"] { background-color: #ffe4eb !important; }
+html:not(.dark) .ga-heatmap-widget :is(.text-rose-200,.text-rose-300) { color: #aa2142 !important; }
+html:not(.dark) .ga-heatmap-widget [class~="bg-[#08161d]"]:hover { background-color: #edf6f0 !important; }
